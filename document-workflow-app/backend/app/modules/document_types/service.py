@@ -215,7 +215,7 @@ class DocumentTypeService:
             raise AppError(
                 "Document type schema is invalid",
                 code="schema_validation_error",
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 details=[error.model_dump() for error in result.errors],
             )
 

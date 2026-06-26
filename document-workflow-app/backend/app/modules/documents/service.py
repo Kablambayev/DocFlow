@@ -268,7 +268,7 @@ class DocumentService:
             raise AppError(
                 "Document data validation failed",
                 code="DOCUMENT_VALIDATION_ERROR",
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 details={
                     "field": errors[0]["field"],
                     "reason": errors[0]["message"],
