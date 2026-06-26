@@ -53,6 +53,33 @@ The admin UI now supports the main configuration flow without using JSON as the 
 
 Raw JSON is kept only in debug/advanced panels where useful; normal create/edit flows use forms.
 
+## Stage 3.1 Constructor Hardening
+
+The constructor now supports editing existing configuration:
+
+- Document form versions:
+  - edit sections and change `sortOrder`;
+  - delete only empty sections;
+  - add, edit, delete fields;
+  - configure enum options with one value per line;
+  - configure money defaults and advanced `settings` / `validation` JSON;
+  - preview draft, published, and archived schemas.
+- Approval routes:
+  - edit route version steps in draft versions;
+  - delete steps;
+  - published/archived route versions are read-only;
+  - route preview is shown as Ant Design `Steps`.
+- Approval matrix:
+  - create and edit rules through the condition builder;
+  - parse existing `condition_json` back into the form;
+  - soft delete rules.
+- Users:
+  - list users;
+  - create and edit users;
+  - copy user id for temporary `X-User-Id` usage.
+
+Use `Admin -> Users` to create or copy a user id while the project does not yet have full authentication.
+
 ## Useful Checks
 
 Backend:

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.users.repository import UserRepository
-from app.modules.users.schemas import UserCreate, UserRead
+from app.modules.users.schemas import UserCreate, UserRead, UserUpdate
 from app.modules.users.service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -30,3 +30,8 @@ def create_user(payload: UserCreate, service: UserService = Depends(get_service)
 @router.get("/{id}", response_model=UserRead)
 def get_user(id: UUID, service: UserService = Depends(get_service)) -> UserRead:
     return service.get_user(id)
+
+
+@router.put("/{id}", response_model=UserRead)
+def update_user(id: UUID, payload: UserUpdate, service: UserService = Depends(get_service)) -> UserRead:
+    return service.update_user(id, payload)

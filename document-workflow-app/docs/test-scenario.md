@@ -21,6 +21,21 @@ Use the frontend admin pages instead of hand-written JSON:
 
 The old Swagger scenario below remains valid for regression checks.
 
+## Stage 3.1 Regression Scenario
+
+1. Open `Admin -> Users`, create or edit a user, and copy the user id.
+2. Open `Admin -> Document types`.
+3. Create a type and draft version if needed.
+4. Add a section, edit its name/order, and verify an empty section can be deleted.
+5. Add a field, edit its section/name/type/order/settings, and delete it.
+6. Add an enum field using one option per line.
+7. Open form preview and verify sections/fields are ordered by `sortOrder`.
+8. Publish the form version and verify it becomes read-only.
+9. Open `Admin -> Approval routes`, create a route version, add/edit/delete steps, and verify preview updates.
+10. Publish the route version and verify steps are read-only.
+11. Open `Admin -> Approval matrix`, create a rule, edit it, and soft delete it.
+12. Open `Documents -> Create document`, create a document from a published form, submit it, and approve the task from `My tasks`.
+
 ## 0. PostgreSQL Check (Windows)
 
 1. Verify PostgreSQL service is running.

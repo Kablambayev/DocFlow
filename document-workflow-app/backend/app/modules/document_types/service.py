@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import status
 
 from app.core.exceptions import AppError
+from app.modules.audit.repository import AuditRepository
+from app.modules.audit.service import AuditService
 from app.modules.document_types.models import VersionStatus
 from app.modules.document_types.repository import DocumentTypeRepository
 from app.modules.document_types.schemas import (
@@ -26,6 +28,7 @@ CODE_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
 class DocumentTypeService:
     def __init__(self, repository: DocumentTypeRepository):
         self.repository = repository
+        self.audit_service = AuditService(AuditRepository(self.repository.db))
 
     def list_document_types(self):
         return self.repository.list()
@@ -51,18 +54,27 @@ class DocumentTypeService:
             exists = self.repository.get_by_code(payload.code)
             if exists is not None:
                 raise AppError("Document type code already exists", code="document_type_code_exists", status_code=409)
-        return self.repository.update(item, payload)
+        updated = self.repository.update(item, payload)
+        self.audit_service.log("document_type", updated.id, "document_type_updated")
+        self.repository.db.commit()
+        return updated
 
     def create_document_type_version(self, document_type_id: UUID, payload: DocumentTypeVersionCreate):
         _ = self.get_document_type(document_type_id)
         self._raise_if_schema_invalid(payload.schema_payload)
-        return self.repository.create_version(document_type_id, payload)
+        version = self.repository.create_version(document_type_id, payload)
+        self.audit_service.log("document_type_version", version.id, "document_type_version_created")
+        self.repository.db.commit()
+        return version
 
     def update_version(self, version_id: UUID, payload: DocumentTypeVersionUpdate):
         version = self.get_editable_version(version_id)
         schema_json = payload.schema_payload if payload.schema_payload is not None else version.schema_json
         self._raise_if_schema_invalid(schema_json)
-        return self.repository.update_version_schema(version, schema_json)
+        updated = self.repository.update_version_schema(version, schema_json)
+        self.audit_service.log("document_type_version", updated.id, "document_type_version_updated")
+        self.repository.db.commit()
+        return updated
 
     def publish_version(self, version_id: UUID):
         version = self.repository.get_version(version_id)
@@ -71,7 +83,10 @@ class DocumentTypeService:
         if version.status != VersionStatus.DRAFT:
             raise AppError("Only draft version can be published", code="invalid_version_state", status_code=409)
         self._raise_if_schema_invalid(version.schema_json)
-        return self.repository.publish_version(version)
+        published = self.repository.publish_version(version)
+        self.audit_service.log("document_type_version", published.id, "document_type_version_published")
+        self.repository.db.commit()
+        return published
 
     def get_version(self, version_id: UUID):
         version = self.repository.get_version(version_id)
@@ -105,7 +120,10 @@ class DocumentTypeService:
         schema_json["sections"].append(
             {"code": payload.code, "name": payload.name, "sortOrder": payload.sort_order, "fields": []}
         )
-        return self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        updated = self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        self.audit_service.log("document_type_version", updated.id, "document_type_section_added", new_values_json={"code": payload.code})
+        self.repository.db.commit()
+        return updated
 
     def update_section(self, version_id: UUID, section_code: str, payload: DocumentTypeSectionRequest):
         version = self.get_editable_version(version_id)
@@ -119,7 +137,10 @@ class DocumentTypeService:
         for field in section.get("fields", []):
             field["sectionCode"] = payload.code
         section.update({"code": payload.code, "name": payload.name, "sortOrder": payload.sort_order})
-        return self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        updated = self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        self.audit_service.log("document_type_version", updated.id, "document_type_section_updated", new_values_json={"code": payload.code})
+        self.repository.db.commit()
+        return updated
 
     def delete_section(self, version_id: UUID, section_code: str):
         version = self.get_editable_version(version_id)
@@ -130,7 +151,10 @@ class DocumentTypeService:
         if section.get("fields"):
             raise AppError("Section contains fields", code="section_not_empty", status_code=409)
         schema_json["sections"] = [item for item in schema_json["sections"] if item.get("code") != section_code]
-        return self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        updated = self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        self.audit_service.log("document_type_version", updated.id, "document_type_section_deleted", old_values_json={"code": section_code})
+        self.repository.db.commit()
+        return updated
 
     def add_field(self, version_id: UUID, payload: DocumentTypeFieldRequest):
         version = self.get_editable_version(version_id)
@@ -142,7 +166,10 @@ class DocumentTypeService:
         if self._find_field(schema_json, payload.code) is not None:
             raise AppError("Field code already exists", code="field_code_exists", status_code=409)
         section.setdefault("fields", []).append(self._field_payload(payload))
-        return self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        updated = self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        self.audit_service.log("document_type_version", updated.id, "document_type_field_added", new_values_json={"code": payload.code})
+        self.repository.db.commit()
+        return updated
 
     def update_field(self, version_id: UUID, field_code: str, payload: DocumentTypeFieldRequest):
         version = self.get_editable_version(version_id)
@@ -160,7 +187,10 @@ class DocumentTypeService:
         old_section, old_field = current
         old_section["fields"] = [item for item in old_section.get("fields", []) if item.get("code") != field_code]
         target_section.setdefault("fields", []).append(self._field_payload(payload))
-        return self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        updated = self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        self.audit_service.log("document_type_version", updated.id, "document_type_field_updated", new_values_json={"code": payload.code})
+        self.repository.db.commit()
+        return updated
 
     def delete_field(self, version_id: UUID, field_code: str):
         version = self.get_editable_version(version_id)
@@ -170,7 +200,10 @@ class DocumentTypeService:
             raise AppError("Field not found", code="field_not_found", status_code=404)
         section, _field = current
         section["fields"] = [item for item in section.get("fields", []) if item.get("code") != field_code]
-        return self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        updated = self.repository.update_version_schema(version, self._sort_schema(schema_json))
+        self.audit_service.log("document_type_version", updated.id, "document_type_field_deleted", old_values_json={"code": field_code})
+        self.repository.db.commit()
+        return updated
 
     def validate_schema(self, version_id: UUID) -> SchemaValidationResult:
         version = self.get_version(version_id)

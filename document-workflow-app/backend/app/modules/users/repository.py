@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.users.models import User
-from app.modules.users.schemas import UserCreate
+from app.modules.users.schemas import UserCreate, UserUpdate
 
 
 class UserRepository:
@@ -25,6 +25,13 @@ class UserRepository:
     def create(self, payload: UserCreate) -> User:
         user = User(email=payload.email, full_name=payload.full_name, is_active=payload.is_active)
         self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def update(self, user: User, payload: UserUpdate) -> User:
+        for key, value in payload.model_dump(exclude_unset=True).items():
+            setattr(user, key, value)
         self.db.commit()
         self.db.refresh(user)
         return user

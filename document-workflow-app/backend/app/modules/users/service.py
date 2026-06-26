@@ -6,7 +6,7 @@ from fastapi import status
 
 from app.core.exceptions import AppError
 from app.modules.users.repository import UserRepository
-from app.modules.users.schemas import UserCreate
+from app.modules.users.schemas import UserCreate, UserUpdate
 
 
 class UserService:
@@ -27,3 +27,11 @@ class UserService:
         if existing is not None:
             raise AppError("Email already exists", code="email_exists", status_code=status.HTTP_409_CONFLICT)
         return self.repository.create(payload)
+
+    def update_user(self, user_id: UUID, payload: UserUpdate):
+        user = self.get_user(user_id)
+        if payload.email and payload.email != user.email:
+            existing = self.repository.get_by_email(payload.email)
+            if existing is not None:
+                raise AppError("Email already exists", code="email_exists", status_code=status.HTTP_409_CONFLICT)
+        return self.repository.update(user, payload)
