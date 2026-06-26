@@ -36,6 +36,89 @@ The old Swagger scenario below remains valid for regression checks.
 11. Open `Admin -> Approval matrix`, create a rule, edit it, and soft delete it.
 12. Open `Documents -> Create document`, create a document from a published form, submit it, and approve the task from `My tasks`.
 
+## Stage 4.1 RBAC Regression Scenario
+
+Stage 4.1 uses temporary development authentication through `X-User-Id`. Do not add Keycloak, JWT, OAuth2/OIDC, Docker, or a new backend framework for this stage.
+
+### Setup
+
+From `backend/`:
+
+```bash
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+python.exe -m pytest
+```
+
+The seed is idempotent and creates:
+
+- users: `admin@example.com`, `author@example.com`, `approver@example.com`;
+- roles: `admin`, `document_user`, `approver`, `document_constructor`, `workflow_admin`, `user_admin`;
+- permissions for documents, document types, approval routes, approval matrix, users, roles, permissions, tasks, audit, plus `admin.access`;
+- role-permission and user-role assignments.
+
+### Automated Tests
+
+The backend tests live in:
+
+```text
+backend/tests/
+  __init__.py
+  conftest.py
+  test_health.py
+  test_rbac.py
+  test_document_visibility.py
+  test_workflow_authorization.py
+```
+
+Covered scenarios:
+
+- `GET /health` returns 200;
+- missing `X-User-Id` on `/api/v1/me` and `/api/v1/documents` returns 401 with `AUTH_REQUIRED`;
+- admin can access `/me`, `/me/permissions`, users, roles, permissions, document types, approval routes, and approval matrix;
+- admin permissions include `admin.access`;
+- author can access documents and active document types, but cannot access users, roles, routes, or matrix;
+- approver can access own tasks and visible documents, but cannot create document types, routes, or matrix rules;
+- admin sees seed documents;
+- author sees only visible documents;
+- direct access to an unrelated foreign document returns `DOCUMENT_ACCESS_DENIED`;
+- submit -> task -> approve still works;
+- wrong user with approve permission cannot approve another user's task and gets `TASK_ACCESS_DENIED`.
+
+### Manual Frontend Smoke
+
+1. Run backend:
+
+```bash
+cd backend
+python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+2. Run frontend:
+
+```bash
+cd frontend
+npm.cmd run dev -- --host 127.0.0.1 --port 5173
+```
+
+3. Open `http://127.0.0.1:5173`.
+4. Select `admin@example.com` in the dev user selector. Admin should see documents, tasks, admin, document types, routes, matrix, users, and roles/permissions.
+5. Select `author@example.com`. Author should see document flow pages and should not see admin sections.
+6. Select `approver@example.com`. Approver should see `My tasks`.
+7. Open a protected admin URL directly as author or approver and verify the 403 state is shown.
+
+### TestClient Check
+
+```bash
+python.exe -B -c "from fastapi.testclient import TestClient; from app.main import app; c = TestClient(app); print(c.get('/health').status_code)"
+```
+
+Expected output:
+
+```text
+200
+```
+
 ## 0. PostgreSQL Check (Windows)
 
 1. Verify PostgreSQL service is running.

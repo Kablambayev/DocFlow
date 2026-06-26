@@ -80,21 +80,81 @@ The constructor now supports editing existing configuration:
 
 Use `Admin -> Users` to create or copy a user id while the project does not yet have full authentication.
 
+## Stage 4.1 RBAC Without Keycloak
+
+RBAC is implemented with a temporary development header:
+
+- every protected API request must include `X-User-Id`;
+- `/api/v1/me` returns the current user;
+- `/api/v1/me/permissions` returns permission codes for the current user;
+- `admin.access` grants access to every permission check;
+- document visibility is limited to the author, assigned approvers, or admin.
+
+Run the seed after migrations to create the RBAC baseline:
+
+```bash
+cd backend
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+```
+
+Seed users:
+
+- `admin@example.com` -> `admin`
+- `author@example.com` -> `document_user`
+- `approver@example.com` -> `approver`
+
+Seed roles:
+
+- `admin`
+- `document_user`
+- `approver`
+- `document_constructor`
+- `workflow_admin`
+- `user_admin`
+
+Seed permissions include document, document type, approval route, approval matrix, user, role, permission, task, audit, and `admin.access` permissions.
+
+Backend regression tests:
+
+```bash
+cd backend
+python.exe -m pytest
+```
+
+The tests cover:
+
+- missing `X-User-Id` -> `AUTH_REQUIRED`;
+- admin wildcard access;
+- author and approver allowed/denied endpoint checks;
+- document visibility;
+- submit -> task -> approve workflow authorization.
+
+Manual frontend RBAC smoke:
+
+1. Run backend and frontend.
+2. Open `http://127.0.0.1:5173`.
+3. Select admin in the dev user selector and verify admin sections are visible.
+4. Select author and verify admin sections are hidden.
+5. Select approver and verify `My tasks` is visible.
+6. Open a protected URL directly and verify the 403 state is rendered.
+
 ## Useful Checks
 
 Backend:
 
 ```bash
 cd backend
-python -m alembic upgrade head
-python scripts/seed_dev.py
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+python.exe -m pytest
+python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 Frontend:
 
 ```bash
 cd frontend
-npm run build
-npm run dev -- --host 127.0.0.1 --port 5173
+npm.cmd run build
+npm.cmd run dev -- --host 127.0.0.1 --port 5173
 ```
