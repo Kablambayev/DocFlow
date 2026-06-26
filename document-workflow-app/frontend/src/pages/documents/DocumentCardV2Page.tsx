@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert, Button, Card, Collapse, Descriptions, Form, Input, Space, Tag, Typography, message } from "antd";
+import { Alert, Button, Card, Collapse, Descriptions, Form, Input, Space, Tabs, Tag, message } from "antd";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 
@@ -7,7 +7,10 @@ import { getDocument, submitDocument, updateDocument, withdrawDocument } from ".
 import { getDocumentTypeVersion } from "../../entities/document-type";
 import { setUserIdHeader } from "../../shared/api/axios";
 import { Can } from "../../shared/auth/Can";
+import { ApprovalTimelinePanel } from "../../shared/ui/ApprovalTimelinePanel";
+import { CommentsPanel } from "../../shared/ui/CommentsPanel";
 import { DocumentFilesPanel } from "../../shared/ui/DocumentFilesPanel";
+import { DocumentHistoryPanel } from "../../shared/ui/DocumentHistoryPanel";
 import { DynamicFormRenderer, normalizeDynamicInitialValues } from "../../shared/ui/DynamicFormRenderer";
 
 const editableStatuses = ["Draft", "Withdrawn"];
@@ -87,35 +90,60 @@ export const DocumentCardV2Page = () => {
           <Descriptions.Item label="Автор">{document.author_id}</Descriptions.Item>
         </Descriptions>
       </Card>
-      <Card title="Данные документа">
-        <Form form={form} layout="vertical" onFinish={onFinish}>
-          <Form.Item name="current_user_id" label="Current User ID (X-User-Id)"><Input placeholder="uuid" /></Form.Item>
-          <Form.Item name="title" label="Заголовок" rules={[{ required: true }]}><Input disabled={!canEdit} /></Form.Item>
-          {schema ? (
-            <DynamicFormRenderer
-              schema={schema}
-              disabled={!canEdit}
-              documentId={document.id}
-              documentStatus={document.approval_status}
-            />
-          ) : <Alert type="info" showIcon message="Схема формы не загружена." />}
-          <Space>
-            {canEdit ? <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>Сохранить</Button> : null}
-            {canEdit ? <Button type="primary" loading={submitMutation.isPending} onClick={() => submitMutation.mutate()}>Отправить на согласование</Button> : null}
-            {canWithdraw ? <Button danger loading={withdrawMutation.isPending} onClick={() => withdrawMutation.mutate()}>Отозвать</Button> : null}
-            <Button onClick={() => void documentQuery.refetch()}>Обновить</Button>
-          </Space>
-        </Form>
-        <Collapse style={{ marginTop: 16 }} items={[{ key: "debug", label: "Raw data_json", children: <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(document.data_json, null, 2)}</pre> }]} />
-      </Card>
-      <Can permission="document_file.read">
-        <Card title="Файлы">
-          <DocumentFilesPanel documentId={document.id} documentStatus={document.approval_status} />
-        </Card>
-      </Can>
       <Card>
-        <Typography.Title level={5}>История согласования</Typography.Title>
-        <Typography.Text type="secondary">TODO: подключить ленту audit/workflow history.</Typography.Text>
+        <Tabs
+          items={[
+            {
+              key: "main",
+              label: "Основное",
+              children: (
+                <Form form={form} layout="vertical" onFinish={onFinish}>
+                  <Form.Item name="current_user_id" label="Current User ID (X-User-Id)"><Input placeholder="uuid" /></Form.Item>
+                  <Form.Item name="title" label="Заголовок" rules={[{ required: true }]}><Input disabled={!canEdit} /></Form.Item>
+                  {schema ? (
+                    <DynamicFormRenderer
+                      schema={schema}
+                      disabled={!canEdit}
+                      documentId={document.id}
+                      documentStatus={document.approval_status}
+                    />
+                  ) : <Alert type="info" showIcon message="Схема формы не загружена." />}
+                  <Space>
+                    {canEdit ? <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>Сохранить</Button> : null}
+                    {canEdit ? <Button type="primary" loading={submitMutation.isPending} onClick={() => submitMutation.mutate()}>Отправить на согласование</Button> : null}
+                    {canWithdraw ? <Button danger loading={withdrawMutation.isPending} onClick={() => withdrawMutation.mutate()}>Отозвать</Button> : null}
+                    <Button onClick={() => void documentQuery.refetch()}>Обновить</Button>
+                  </Space>
+                  <Collapse style={{ marginTop: 16 }} items={[{ key: "debug", label: "Raw data_json", children: <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(document.data_json, null, 2)}</pre> }]} />
+                </Form>
+              ),
+            },
+            {
+              key: "files",
+              label: "Файлы",
+              children: (
+                <Can permission="document_file.read">
+                  <DocumentFilesPanel documentId={document.id} documentStatus={document.approval_status} />
+                </Can>
+              ),
+            },
+            {
+              key: "comments",
+              label: "Комментарии",
+              children: <CommentsPanel documentId={document.id} />,
+            },
+            {
+              key: "approval",
+              label: "Согласование",
+              children: <ApprovalTimelinePanel documentId={document.id} />,
+            },
+            {
+              key: "history",
+              label: "История",
+              children: <DocumentHistoryPanel documentId={document.id} />,
+            },
+          ]}
+        />
       </Card>
     </Space>
   );

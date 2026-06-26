@@ -39,7 +39,7 @@ export const MyTasksV2Page = () => {
   const rejectMutation = useMutation({
     mutationFn: (taskId: string) => {
       setUserIdHeader(userId);
-      return rejectTask(taskId, { comment: commentByTaskId[taskId] || null });
+      return rejectTask(taskId, { comment: commentByTaskId[taskId]?.trim() || null });
     },
     onSuccess: () => {
       message.success("Задача отклонена");
@@ -47,6 +47,14 @@ export const MyTasksV2Page = () => {
     },
     onError: (error) => message.error(apiError(error, "Ошибка отклонения")),
   });
+
+  const rejectTaskWithComment = (taskId: string) => {
+    if (!commentByTaskId[taskId]?.trim()) {
+      message.warning("Комментарий обязателен для отклонения");
+      return;
+    }
+    rejectMutation.mutate(taskId);
+  };
 
   return (
     <Card>
@@ -78,7 +86,7 @@ export const MyTasksV2Page = () => {
             render: (_, row) => (
               <Space>
                 <Button type="primary" onClick={() => approveMutation.mutate(row.id)}>Approve</Button>
-                <Button danger onClick={() => rejectMutation.mutate(row.id)}>Reject</Button>
+                <Button danger onClick={() => rejectTaskWithComment(row.id)}>Reject</Button>
               </Space>
             ),
           },

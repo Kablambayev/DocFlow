@@ -237,6 +237,131 @@ python.exe -m pytest
 - extension restriction;
 - file size restriction.
 
+## Stage 6 Comments And Timeline Scenario
+
+Stage 6 adds document comments, approval decision comments, a document history timeline, and an approval timeline in the document card.
+
+### Permissions
+
+Seed adds:
+
+- `document_comment.read`
+- `document_comment.create`
+- `document_comment.update`
+- `document_comment.delete`
+
+Assignments:
+
+- `admin`: all permissions;
+- `document_user`: read/create/update/delete document comments;
+- `approver`: read/create document comments.
+
+Comment access still follows document visibility: admin, document author, or assigned approver task.
+
+### API Scenario
+
+1. Open or create a visible document.
+2. Create a general comment:
+
+```text
+POST /api/v1/documents/{document_id}/comments
+Header: X-User-Id: author_id
+```
+
+```json
+{
+  "comment_text": "Проверить реквизиты"
+}
+```
+
+3. List document comments:
+
+```text
+GET /api/v1/documents/{document_id}/comments
+```
+
+4. Update the author's own general comment:
+
+```text
+PUT /api/v1/comments/{comment_id}
+```
+
+5. Delete the author's own general comment:
+
+```text
+DELETE /api/v1/comments/{comment_id}
+```
+
+Expected delete response:
+
+```json
+{
+  "status": "deleted"
+}
+```
+
+6. Submit a document and reject a task with a required comment:
+
+```text
+POST /api/v1/workflow/tasks/{task_id}/reject
+```
+
+```json
+{
+  "comment": "Нужно исправить сумму"
+}
+```
+
+Expected:
+
+- reject without a comment returns `REJECT_COMMENT_REQUIRED`;
+- approve/reject decision comments appear as `approval` comments;
+- approval comments cannot be edited or deleted.
+
+### Timeline API
+
+```text
+GET /api/v1/documents/{document_id}/timeline
+GET /api/v1/documents/{document_id}/approval-timeline
+```
+
+Expected:
+
+- document timeline contains audit events and comments sorted by creation time;
+- file events are normalized to `file_uploaded` and `file_deleted`;
+- approval timeline returns the latest process, steps, tasks, task statuses, and decision comments.
+
+### UI Scenario
+
+1. Run backend and frontend.
+2. Open a document card.
+3. Use the `Комментарии` tab to add, edit, and delete a general comment.
+4. Submit the document and approve or reject it from `Мои задачи`.
+5. For reject, leave the comment empty and verify the UI blocks the action.
+6. Add a reject comment and verify the task is rejected.
+7. Return to the document card.
+8. Verify the `Согласование` tab shows steps, approvers, statuses, and decision comments.
+9. Verify the `История` tab shows comments and document audit events.
+
+### Automated Tests
+
+Run:
+
+```bash
+cd backend
+python.exe -m pytest
+```
+
+`backend/tests/test_comments.py` and `backend/tests/test_document_timeline.py` cover:
+
+- comment CRUD authorization;
+- no access to unrelated document comments;
+- approval comments from workflow decisions;
+- reject comment requirement;
+- approval comments are immutable through the comments API;
+- document timeline access and sorting;
+- approval timeline shape.
+
 ## 0. PostgreSQL Check (Windows)
 
 1. Verify PostgreSQL service is running.

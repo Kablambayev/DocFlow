@@ -7,6 +7,7 @@ from fastapi import status
 
 from app.core.exceptions import AppError
 from app.modules.audit.service import AuditService
+from app.modules.comments.models import CommentType, DocumentComment
 from app.modules.documents.models import DocumentApprovalStatus
 from app.modules.workflow.matrix import MatrixEngine
 from app.modules.workflow.models import ProcessStatus, TaskStatus
@@ -101,6 +102,7 @@ class WorkflowEngine:
         task.status = TaskStatus.APPROVED
         task.completed_at = datetime.now(timezone.utc)
         self.repository.create_decision(task.id, task.process_id, task.document_id, user_id, "Approve", comment)
+        self._create_approval_comment(task.document_id, user_id, comment)
 
         process = self.repository.get_process(task.process_id)
         if process is None:
@@ -111,6 +113,8 @@ class WorkflowEngine:
         self.repository.commit()
 
     def reject_task(self, task_id: UUID, user_id: UUID, comment: str | None) -> None:
+        if not comment or not comment.strip():
+            raise AppError("Reject comment is required", code="REJECT_COMMENT_REQUIRED", status_code=400)
         task = self.repository.get_task(task_id)
         if task is None:
             raise AppError("Task not found", code="TASK_NOT_FOUND", status_code=404)
@@ -127,6 +131,7 @@ class WorkflowEngine:
         task.status = TaskStatus.REJECTED
         task.completed_at = datetime.now(timezone.utc)
         self.repository.create_decision(task.id, task.process_id, task.document_id, user_id, "Reject", comment)
+        self._create_approval_comment(task.document_id, user_id, comment)
 
         process.status = ProcessStatus.REJECTED
         process.finished_at = datetime.now(timezone.utc)
@@ -196,3 +201,15 @@ class WorkflowEngine:
         if document is not None:
             document.approval_status = DocumentApprovalStatus.WITHDRAWN
         self.repository.cancel_pending_tasks_for_process(process.id)
+
+    def _create_approval_comment(self, document_id: UUID, user_id: UUID, comment: str | None) -> None:
+        if not comment or not comment.strip():
+            return
+        self.repository.db.add(
+            DocumentComment(
+                document_id=document_id,
+                author_id=user_id,
+                comment_text=comment.strip(),
+                comment_type=CommentType.APPROVAL,
+            )
+        )

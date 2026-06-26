@@ -43,6 +43,7 @@ export const DocumentFilesPanel = ({ documentId, documentStatus, readonly, field
   const canRead = hasPermission("document_file.read");
   const canUpload = hasPermission("document_file.upload") && editableStatuses.includes(documentStatus) && !readonly;
   const canDelete = hasPermission("document_file.delete") && editableStatuses.includes(documentStatus) && !readonly;
+  const canChangeFilesByStatus = editableStatuses.includes(documentStatus);
 
   const filesQuery = useQuery({
     queryKey: ["document-files", documentId],
@@ -83,6 +84,9 @@ export const DocumentFilesPanel = ({ documentId, documentStatus, readonly, field
   return (
     <Space direction="vertical" size={12} style={{ width: "100%" }}>
       {filesQuery.isError ? <Alert type="error" showIcon message={apiError(filesQuery.error, "Ошибка загрузки файлов")} /> : null}
+      {!canChangeFilesByStatus ? (
+        <Alert type="info" showIcon message="Удаление и загрузка файлов доступны только для Draft и Withdrawn документов" />
+      ) : null}
       {canUpload ? (
         <Upload.Dragger
           multiple
@@ -127,7 +131,7 @@ export const DocumentFilesPanel = ({ documentId, documentStatus, readonly, field
                       okText: "Удалить",
                       okButtonProps: { danger: true },
                       cancelText: "Отмена",
-                      onOk: () => deleteMutation.mutate(file),
+                      onOk: () => deleteMutation.mutateAsync(file),
                     })
                   }
                 />

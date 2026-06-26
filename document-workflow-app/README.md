@@ -192,6 +192,30 @@ Audit actions:
 - `document_file_downloaded`
 - `document_file_deleted`
 
+## Stage 6 Comments And Timelines
+
+Document cards now have tabs for `Основное`, `Файлы`, `Комментарии`, `Согласование`, and `История`.
+
+API endpoints:
+
+- `GET /api/v1/documents/{document_id}/comments`
+- `POST /api/v1/documents/{document_id}/comments`
+- `PUT /api/v1/comments/{comment_id}`
+- `DELETE /api/v1/comments/{comment_id}`
+- `GET /api/v1/documents/{document_id}/timeline`
+- `GET /api/v1/documents/{document_id}/approval-timeline`
+
+Required permissions:
+
+- `document_comment.read`
+- `document_comment.create`
+- `document_comment.update`
+- `document_comment.delete`
+
+General comments can be created by users who can access the document. A user can edit or delete their own general comments; admin can edit or delete any general comment through `admin.access`. Approval comments are created automatically from approve/reject decisions and cannot be edited or deleted through the comments API. Reject requires a non-empty comment.
+
+The `История` tab aggregates audit events and comments. The `Согласование` tab shows the latest approval process grouped by route step, including approver decisions and decision comments.
+
 ## Useful Checks
 
 Backend:

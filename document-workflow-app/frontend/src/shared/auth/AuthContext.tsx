@@ -25,6 +25,15 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
+const DEFAULT_DEV_USER_ID = "ac9d2376-34a0-439f-b8fc-319418b9fb57";
+
+const getInitialUserId = () => {
+  const storedUserId = localStorage.getItem("docflow_user_id");
+  if (storedUserId) return storedUserId;
+  setUserIdHeader(DEFAULT_DEV_USER_ID);
+  return DEFAULT_DEV_USER_ID;
+};
+
 const getMe = async () => {
   const { data } = await apiClient.get<AuthUser>("/me");
   return data;
@@ -37,7 +46,7 @@ const getMyPermissions = async () => {
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const queryClient = useQueryClient();
-  const [currentUserId, setCurrentUserIdState] = useState(() => localStorage.getItem("docflow_user_id"));
+  const [currentUserId, setCurrentUserIdState] = useState<string | null>(getInitialUserId);
 
   const meQuery = useQuery({
     queryKey: ["auth", "me", currentUserId],

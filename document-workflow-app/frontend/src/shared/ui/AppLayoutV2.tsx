@@ -19,6 +19,12 @@ const menuPermissionsByKey: Record<string, { permission?: string; anyOf?: string
   "/admin/roles": { anyOf: ["role.read", "permission.read"] },
 };
 
+const devUserOptions = [
+  { value: "ac9d2376-34a0-439f-b8fc-319418b9fb57", label: "Admin User <admin@example.com>" },
+  { value: "ec42a60c-3ce6-42ca-892f-c8ac286d472f", label: "Author User <author@example.com>" },
+  { value: "430fe9f5-f037-41fc-815e-abcf24e62eb5", label: "Approver User <approver@example.com>" },
+];
+
 type MenuItem = {
   key: string;
   label: string;
@@ -34,17 +40,21 @@ interface AppLayoutProps extends PropsWithChildren {
 export const AppLayoutV2 = ({ menuItems }: AppLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentUser, currentUserId, permissions, setCurrentUserId, refreshAuth, hasPermission, hasAnyPermission } = useAuth();
+  const { currentUser, currentUserId, permissions, isLoading, setCurrentUserId, refreshAuth, hasPermission, hasAnyPermission } = useAuth();
   const usersQuery = useQuery({ queryKey: ["users", "layout"], queryFn: getUsers, enabled: hasPermission("user.read"), retry: false });
   const sourceMenuItems = [...menuItems, { key: "/admin/roles", label: "Роли и права" }];
   const visibleMenuItems = sourceMenuItems
     .filter((item) => {
+      if (!currentUserId || isLoading) return true;
       const rule = { ...menuPermissionsByKey[item.key], permission: item.permission, anyOf: item.anyOf };
       if (rule.permission) return hasPermission(rule.permission);
       if (rule.anyOf) return hasAnyPermission(rule.anyOf);
       return true;
     })
     .map(({ permission: _permission, anyOf: _anyOf, ...item }) => item);
+  const userOptions = usersQuery.data?.length
+    ? usersQuery.data.map((user) => ({ value: user.id, label: `${user.full_name} <${user.email}>` }))
+    : devUserOptions;
 
   return (
     <Layout style={{ minHeight: "100vh", background: "linear-gradient(180deg, #f3f6f7 0%, #e9efee 100%)" }}>
@@ -73,7 +83,7 @@ export const AppLayoutV2 = ({ menuItems }: AppLayoutProps) => {
               optionFilterProp="label"
               loading={usersQuery.isLoading}
               onChange={(value) => setCurrentUserId(value ?? null)}
-              options={(usersQuery.data ?? []).map((user) => ({ value: user.id, label: `${user.full_name} <${user.email}>` }))}
+              options={userOptions}
             />
             <Input
               placeholder="X-User-Id"
