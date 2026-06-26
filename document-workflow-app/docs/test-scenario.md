@@ -581,6 +581,113 @@ Covered checks:
 - invalid dictionary UUID rejection;
 - contract mismatch rejection.
 
+## Stage 9 HTTP Integration With 1C Scenario
+
+Stage 9 implements synchronous inbound HTTP imports from 1C into DocFlow dictionaries. No message brokers or queue workers are used.
+
+### Permissions
+
+All import endpoints require:
+
+- `accounting.sync`
+
+Access matrix:
+
+- `admin`: allowed via `admin.access`;
+- `accounting_admin`: allowed;
+- `document_user`: forbidden (`403`);
+- `approver`: forbidden (`403`).
+
+### Endpoints
+
+```text
+POST /api/v1/integration/1c/organizations/import
+POST /api/v1/integration/1c/counterparties/import
+POST /api/v1/integration/1c/currencies/import
+POST /api/v1/integration/1c/expense-items/import
+POST /api/v1/integration/1c/counterparty-contracts/import
+```
+
+Envelope format:
+
+```json
+{
+  "source_system": "1C",
+  "items": []
+}
+```
+
+### Recommended import order
+
+1. organizations
+2. counterparties
+3. currencies
+4. expense_items
+5. counterparty_contracts
+
+### Swagger inbound smoke
+
+1. Run backend and open `/docs`.
+2. Use `X-User-Id` of `accounting_admin@example.com`.
+3. Import organizations.
+4. Import counterparties.
+5. Import currencies.
+6. Import expense items.
+7. Import counterparty contracts.
+8. Verify accounting read endpoints return imported data.
+9. Verify contracts filter:
+
+```text
+GET /api/v1/accounting/counterparty-contracts?organization_id=...&counterparty_id=...
+```
+
+Expected:
+
+- imports are idempotent via `source_system + external_id`;
+- partial success returns `200` with row-level `errors`;
+- batch > 1000 returns `422` + `IMPORT_BATCH_TOO_LARGE`.
+
+### Future outbound note (Stage 9.2)
+
+Stage 9.2 will implement `DocFlow -> 1C` HTTP export for approved `PaymentRequest` only.
+
+DocFlow will not send workflow internals:
+
+- routes
+- tasks
+- approval decisions
+- comments/timeline/history
+
+1C must create or return a payment order based on request payload.
+
+### Automated tests
+
+Run:
+
+```bash
+cd backend
+python.exe -m pytest
+```
+
+Stage 9 coverage file:
+
+- `backend/tests/test_integration_1c_import.py`
+
+Covered checks:
+
+- missing `X-User-Id` -> `401`;
+- missing `accounting.sync` -> `403`;
+- admin/accounting_admin access;
+- organizations create/reimport/update + validation row errors;
+- counterparties create/reimport update;
+- currencies create + controlled `CURRENCY_CODE_CONFLICT`;
+- expense items create + `is_active=false` updates;
+- contracts reference resolution by external ids;
+- contracts missing refs -> controlled row errors;
+- partial success counters and `errors` array;
+- batch-size limit error;
+- existing accounting contracts filter still works by internal ids.
+
 ## 0. PostgreSQL Check (Windows)
 
 1. Verify PostgreSQL service is running.

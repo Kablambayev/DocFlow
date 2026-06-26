@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 25
     allowed_file_extensions: str = ".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.zip"
 
+    one_c_base_url: str = "http://1c-server/base/hs/docflow"
+    one_c_username: str = ""
+    one_c_password: str = ""
+    one_c_timeout_seconds: int = 30
+    one_c_enabled: bool = False
+
     @field_validator("debug", mode="before")
     @classmethod
     def parse_debug(cls, value):

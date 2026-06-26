@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -14,6 +15,8 @@ class AccountingDictionaryBaseRead(BaseModel):
     name: str
     full_name: str | None = None
     is_active: bool
+    source_system: str
+    synced_at: datetime | None = None
 
 
 class AccountingOrganizationRead(AccountingDictionaryBaseRead):
@@ -44,6 +47,8 @@ class AccountingCounterpartyContractRead(BaseModel):
     number: str | None
     contract_date: date | None
     is_active: bool
+    source_system: str
+    synced_at: datetime | None
 
 
 class CashFlowOperationTypeRead(BaseModel):

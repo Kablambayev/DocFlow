@@ -18,6 +18,8 @@ export interface CounterpartyContractItem {
   number?: string | null;
   contract_date?: string | null;
   is_active: boolean;
+  source_system?: string;
+  synced_at?: string | null;
 }
 
 export interface AccountingQueryParams {

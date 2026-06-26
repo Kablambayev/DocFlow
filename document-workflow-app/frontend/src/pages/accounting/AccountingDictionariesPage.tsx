@@ -156,6 +156,8 @@ export const AccountingDictionariesPage = () => {
       { title: "Org", dataIndex: "organization_id" },
       { title: "Counterparty", dataIndex: "counterparty_id" },
       { title: "Currency", dataIndex: "currency_id" },
+      { title: "Source", dataIndex: "source_system" },
+      { title: "Synced", dataIndex: "synced_at", render: (value: string | null | undefined) => value ?? "-" },
       { title: "Active", dataIndex: "is_active", render: (value: boolean) => <Tag color={value ? "green" : "red"}>{value ? "Yes" : "No"}</Tag> },
     ],
     [],

@@ -316,6 +316,117 @@ Backend tests:
 
 They cover permission boundaries, list/filter behavior, local CRUD soft-delete, valid dictionary submission, unknown dictionary ids, and contract-org-counterparty mismatch validation.
 
+## Stage 9 HTTP Integration With 1C
+
+Stage 9 implements the inbound HTTP integration flow `1C -> DocFlow` for dictionary import. The integration is synchronous and REST-only.
+
+Not used in Stage 9:
+
+- Kafka
+- RabbitMQ
+- Celery/RQ
+- event bus / background queues
+
+Inbound base path:
+
+- `/api/v1/integration/1c`
+
+Permission model:
+
+- all import endpoints require `accounting.sync`;
+- `admin` has access through `admin.access`;
+- `accounting_admin` has access through `accounting.sync`.
+
+Inbound endpoints:
+
+- `POST /api/v1/integration/1c/organizations/import`
+- `POST /api/v1/integration/1c/counterparties/import`
+- `POST /api/v1/integration/1c/currencies/import`
+- `POST /api/v1/integration/1c/expense-items/import`
+- `POST /api/v1/integration/1c/counterparty-contracts/import`
+
+Import envelope:
+
+```json
+{
+  "source_system": "1C",
+  "items": []
+}
+```
+
+- `source_system` is optional, default `1C`;
+- max batch size: `1000` items;
+- if exceeded, API returns `IMPORT_BATCH_TOO_LARGE` with HTTP `422`.
+
+Import result format:
+
+```json
+{
+  "status": "completed",
+  "source_system": "1C",
+  "entity": "organizations",
+  "received": 10,
+  "created": 3,
+  "updated": 7,
+  "skipped": 0,
+  "errors": []
+}
+```
+
+Partial success behavior:
+
+- valid rows are imported;
+- invalid rows are skipped;
+- per-row errors are returned in `errors`;
+- HTTP status remains `200` for partial success.
+
+Upsert/idempotency:
+
+- upsert key is `source_system + external_id`;
+- repeated import does not create duplicates;
+- repeated rows are counted as `updated`.
+
+Counterparty contracts import specifics:
+
+- accepts external references:
+  - `organization_external_id`
+  - `counterparty_external_id`
+  - `currency_external_id` (optional)
+- resolves them within the same `source_system`;
+- controlled row errors:
+  - `ORGANIZATION_NOT_FOUND`
+  - `COUNTERPARTY_NOT_FOUND`
+  - `CURRENCY_NOT_FOUND`
+
+Audit events are created for each import call:
+
+- `integration_1c_organizations_imported`
+- `integration_1c_counterparties_imported`
+- `integration_1c_currencies_imported`
+- `integration_1c_expense_items_imported`
+- `integration_1c_counterparty_contracts_imported`
+
+Future outbound (`DocFlow -> 1C`) is intentionally not implemented in Stage 9. Only skeleton placeholders exist in:
+
+- `backend/app/modules/integration/one_c/outbound_client.py`
+- `backend/app/modules/integration/one_c/outbound_service.py`
+
+Stage 9.2 will send only approved `PaymentRequest` data to 1C for payment order creation, without workflow internals.
+
+Stage 9 settings added to backend config (`.env` optional):
+
+```env
+ONE_C_BASE_URL=http://1c-server/base/hs/docflow
+ONE_C_USERNAME=
+ONE_C_PASSWORD=
+ONE_C_TIMEOUT_SECONDS=30
+ONE_C_ENABLED=false
+```
+
+Detailed contracts are documented in:
+
+- `docs/integration-1c-contracts.md`
+
 ## Useful Checks
 
 Backend:
