@@ -47,6 +47,8 @@ PERMISSIONS = [
     ("document_file.read", "Read document files"),
     ("document_file.upload", "Upload document files"),
     ("document_file.delete", "Delete document files"),
+    ("notification.read", "Read notifications"),
+    ("notification.update", "Update notifications"),
     ("document_type.read", "Read document types"),
     ("document_type.create", "Create document types"),
     ("document_type.update", "Update document types"),
@@ -85,6 +87,8 @@ ROLE_PERMISSIONS = {
         "document_file.read",
         "document_file.upload",
         "document_file.delete",
+        "notification.read",
+        "notification.update",
         "document_type.read",
     ],
     "approver": [
@@ -94,6 +98,8 @@ ROLE_PERMISSIONS = {
         "document_comment.read",
         "document_comment.create",
         "document_file.read",
+        "notification.read",
+        "notification.update",
         "task.read",
     ],
     "document_constructor": [

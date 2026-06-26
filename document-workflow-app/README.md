@@ -216,6 +216,57 @@ General comments can be created by users who can access the document. A user can
 
 The `История` tab aggregates audit events and comments. The `Согласование` tab shows the latest approval process grouped by route step, including approver decisions and decision comments.
 
+## Stage 7.1 In-App Notifications
+
+DocFlow now creates in-app notifications synchronously from existing backend services. Email, Telegram, WebSocket, push notifications, background workers, Kafka, Keycloak, and OAuth2/OIDC are intentionally not part of this stage.
+
+API endpoints:
+
+- `GET /api/v1/notifications/my`
+- `GET /api/v1/notifications/unread-count`
+- `POST /api/v1/notifications/{notification_id}/read`
+- `POST /api/v1/notifications/read-all`
+
+Required permissions:
+
+- `notification.read`
+- `notification.update`
+
+Seed grants notification permissions to `admin`, `document_user`, and `approver`.
+
+Notification events:
+
+- `approval_task_created`
+- `approval_task_cancelled`
+- `approval_task_approved`
+- `approval_task_rejected`
+- `document_submitted`
+- `document_approved`
+- `document_rejected`
+- `document_withdrawn`
+- `document_comment_created`
+- `document_file_uploaded`
+
+Users can read and update only their own notifications. The `/notifications/my` endpoint never returns another user's notifications, including for admins. The frontend topbar shows a bell badge for unread notifications and a dropdown with recent notifications. Clicking an item marks it as read and opens the related document when `document_id` is available.
+
+Swagger smoke:
+
+1. Run backend and open `http://127.0.0.1:8000/docs`.
+2. Send `X-User-Id` for a seeded user.
+3. Call `GET /api/v1/notifications/my`.
+4. Call `GET /api/v1/notifications/unread-count`.
+5. Call `POST /api/v1/notifications/read-all`.
+
+UI smoke:
+
+1. Submit a document as `author@example.com`.
+2. Switch to `approver@example.com`.
+3. Verify the notification badge and dropdown show a new approval task.
+4. Click the notification and verify the document card opens.
+5. Approve or reject the task.
+6. Switch back to `author@example.com`.
+7. Verify the result notification appears and can be marked as read.
+
 ## Useful Checks
 
 Backend:

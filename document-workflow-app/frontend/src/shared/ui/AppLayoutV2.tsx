@@ -5,6 +5,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { getUsers } from "../../entities/user";
 import { useAuth } from "../auth/useAuth";
+import { NotificationsDropdown } from "./NotificationsDropdown";
 
 const { Header, Sider, Content } = Layout;
 
@@ -93,6 +94,7 @@ export const AppLayoutV2 = ({ menuItems }: AppLayoutProps) => {
             />
             <Button onClick={() => void refreshAuth()}>Обновить права</Button>
             <Tag color={permissions.includes("admin.access") ? "green" : "blue"}>{permissions.length} прав</Tag>
+            <NotificationsDropdown />
           </Space>
         </Header>
         <Content style={{ padding: 24 }}>

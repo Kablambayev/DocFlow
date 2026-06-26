@@ -13,6 +13,9 @@ from app.modules.document_types.models import VersionStatus
 from app.modules.documents.models import DocumentApprovalStatus
 from app.modules.documents.repository import DocumentRepository
 from app.modules.documents.schemas import DocumentCreate, DocumentUpdate
+from app.modules.notifications.models import NotificationType
+from app.modules.notifications.repository import NotificationRepository
+from app.modules.notifications.service import NotificationService
 from app.modules.workflow.engine import WorkflowEngine
 
 
@@ -20,6 +23,7 @@ class DocumentService:
     def __init__(self, repository: DocumentRepository):
         self.repository = repository
         self.audit_service = AuditService(AuditRepository(self.repository.db))
+        self.notification_service = NotificationService(NotificationRepository(self.repository.db))
 
     def list_documents(self, user_id: UUID):
         if self._is_admin(user_id):
@@ -117,8 +121,21 @@ class DocumentService:
         if process is None:
             raise AppError("Active approval process not found", code="ACTIVE_PROCESS_NOT_FOUND", status_code=404)
 
-        self.repository.cancel_process_and_tasks(process)
+        cancelled_tasks = self.repository.cancel_process_and_tasks(process)
         doc.approval_status = DocumentApprovalStatus.WITHDRAWN
+        for task in cancelled_tasks:
+            self.notification_service.safe_create_notification(
+                recipient_id=task.approver_id,
+                actor_id=user_id,
+                notification_type=NotificationType.DOCUMENT_WITHDRAWN,
+                title="Документ отозван",
+                message=f"Документ {doc.number} отозван автором",
+                entity_type="document",
+                entity_id=doc.id,
+                document_id=doc.id,
+                task_id=task.id,
+                payload={"document_number": doc.number, "document_title": doc.title, "process_id": str(process.id)},
+            )
         self.repository.db.commit()
         self.repository.db.refresh(doc)
 

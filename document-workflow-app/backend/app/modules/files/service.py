@@ -12,6 +12,9 @@ from app.modules.audit.service import AuditService
 from app.modules.documents.models import DocumentApprovalStatus
 from app.modules.files.repository import FileRepository
 from app.modules.files.storage import StorageProvider
+from app.modules.notifications.models import NotificationType
+from app.modules.notifications.repository import NotificationRepository
+from app.modules.notifications.service import NotificationService
 from app.modules.users.models import User
 
 
@@ -23,6 +26,7 @@ class FileService:
         self.repository = repository
         self.storage = storage
         self.audit_service = AuditService(AuditRepository(self.repository.db))
+        self.notification_service = NotificationService(NotificationRepository(self.repository.db))
 
     def list_document_files(self, document_id: UUID, user: User):
         document = self._get_document(document_id)
@@ -73,6 +77,8 @@ class FileService:
                 "field_code": item.field_code,
             },
         )
+        self._notify_file_uploaded(document, item, user)
+        self.repository.db.commit()
         return item
 
     def get_download(self, file_id: UUID, user: User):
@@ -182,3 +188,27 @@ class FileService:
         suffix = PurePath(safe_name).suffix.lower()
         if suffix not in settings.allowed_file_extension_set:
             raise AppError("File extension is not allowed", code="FILE_EXTENSION_NOT_ALLOWED", status_code=422)
+
+    def _notify_file_uploaded(self, document, item, user: User) -> None:
+        if user.id == document.author_id:
+            recipients = set(self.notification_service.approver_ids_for_document(document.id))
+        else:
+            recipients = {document.author_id}
+        recipients.discard(user.id)
+        actor_name = user.full_name or user.email
+        self.notification_service.safe_notify_users(
+            recipients,
+            actor_id=user.id,
+            notification_type=NotificationType.DOCUMENT_FILE_UPLOADED,
+            title="Добавлен файл",
+            message=f"{actor_name} добавил файл {item.file_name} к документу {document.number}",
+            entity_type="file",
+            entity_id=item.id,
+            document_id=document.id,
+            payload={
+                "document_number": document.number,
+                "document_title": document.title,
+                "file_name": item.file_name,
+                "field_code": item.field_code,
+            },
+        )

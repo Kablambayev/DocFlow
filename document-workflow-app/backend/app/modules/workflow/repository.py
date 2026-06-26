@@ -143,7 +143,7 @@ class WorkflowRepository:
             self.db.scalars(select(ApprovalTask).where(ApprovalTask.process_id == process_id, ApprovalTask.step_order == step_order))
         )
 
-    def cancel_pending_tasks_for_process(self, process_id: UUID) -> None:
+    def cancel_pending_tasks_for_process(self, process_id: UUID) -> list[ApprovalTask]:
         pending_tasks = list(
             self.db.scalars(
                 select(ApprovalTask).where(ApprovalTask.process_id == process_id, ApprovalTask.status == TaskStatus.PENDING)
@@ -152,6 +152,13 @@ class WorkflowRepository:
         for task in pending_tasks:
             task.status = TaskStatus.CANCELLED
             task.completed_at = datetime.now(timezone.utc)
+        return pending_tasks
+
+    def get_user_name(self, user_id: UUID | None) -> str | None:
+        if user_id is None:
+            return None
+        user = self.db.get(User, user_id)
+        return user.full_name if user else None
 
     def commit(self) -> None:
         self.db.commit()

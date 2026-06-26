@@ -97,7 +97,7 @@ class DocumentRepository:
         )
         return self.db.scalar(stmt)
 
-    def cancel_process_and_tasks(self, process: ApprovalProcess) -> None:
+    def cancel_process_and_tasks(self, process: ApprovalProcess) -> list[ApprovalTask]:
         process.status = ProcessStatus.CANCELLED
         process.finished_at = datetime.now(timezone.utc)
 
@@ -109,6 +109,7 @@ class DocumentRepository:
         for task in pending_tasks:
             task.status = TaskStatus.CANCELLED
             task.completed_at = datetime.now(timezone.utc)
+        return pending_tasks
 
     def get_published_route_version_for_route(self, route_id: UUID) -> ApprovalRouteVersion | None:
         stmt = (

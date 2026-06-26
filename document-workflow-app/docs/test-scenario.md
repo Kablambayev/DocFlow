@@ -362,6 +362,138 @@ python.exe -m pytest
 - document timeline access and sorting;
 - approval timeline shape.
 
+## Stage 7.1 In-App Notifications Scenario
+
+Stage 7.1 adds internal notifications inside DocFlow. Notifications are created synchronously in existing services. Do not add email, Telegram, WebSocket, push notifications, background workers, Celery/RQ, Kafka, Keycloak, OAuth2/OIDC, or Docker for this stage.
+
+### Permissions
+
+Seed adds:
+
+- `notification.read`
+- `notification.update`
+
+Assignments:
+
+- `admin`: all permissions;
+- `document_user`: read/update own notifications;
+- `approver`: read/update own notifications.
+
+Users can access only their own notifications through `/notifications/my`; admin-wide notification browsing is not implemented in Stage 7.1.
+
+### API Endpoints
+
+```text
+GET  /api/v1/notifications/my
+GET  /api/v1/notifications/unread-count
+POST /api/v1/notifications/{notification_id}/read
+POST /api/v1/notifications/read-all
+```
+
+`GET /notifications/my` accepts:
+
+```text
+limit: int = 20
+offset: int = 0
+is_read: optional bool
+```
+
+### Events
+
+Notifications are created for:
+
+- new approval task: `approval_task_created`;
+- cancelled approval task: `approval_task_cancelled`;
+- approved task: `approval_task_approved`;
+- rejected task: `approval_task_rejected`;
+- submitted document: `document_submitted`;
+- approved document: `document_approved`;
+- rejected document: `document_rejected`;
+- withdrawn document: `document_withdrawn`;
+- new general document comment: `document_comment_created`;
+- uploaded file: `document_file_uploaded`.
+
+Self-notifications are skipped where they would only echo the user's own action.
+
+### Swagger Scenario
+
+1. Submit a document as `author@example.com`.
+2. Open Swagger and call as `approver@example.com`:
+
+```text
+GET /api/v1/notifications/my
+GET /api/v1/notifications/unread-count
+```
+
+Expected: notification type `approval_task_created` with `document_id` and `task_id`.
+
+3. Mark it read:
+
+```text
+POST /api/v1/notifications/{notification_id}/read
+```
+
+Expected:
+
+```json
+{
+  "status": "read"
+}
+```
+
+4. Mark all read:
+
+```text
+POST /api/v1/notifications/read-all
+```
+
+Expected:
+
+```json
+{
+  "status": "read_all",
+  "updated_count": 1
+}
+```
+
+### UI Scenario
+
+1. Run backend and frontend.
+2. Select `author@example.com`.
+3. Create a Draft document and submit it for approval.
+4. Select `approver@example.com`.
+5. Verify the bell badge shows unread notifications.
+6. Open the dropdown and click the task notification.
+7. Verify the document card opens.
+8. Approve or reject the task.
+9. Select `author@example.com`.
+10. Verify the author sees approval/rejection notifications.
+11. Use `Прочитать все`.
+12. Verify the badge becomes `0`.
+
+### Automated Tests
+
+Run:
+
+```bash
+cd backend
+python.exe -m pytest
+```
+
+`backend/tests/test_notifications.py` covers:
+
+- missing `X-User-Id` returns 401;
+- user reads own notifications;
+- user cannot mark another user's notification as read;
+- unread count;
+- mark one as read;
+- mark all as read;
+- submit creates approver notification;
+- approve creates author notifications;
+- reject creates author notifications;
+- comment creates participant notification;
+- file upload creates participant notification.
+
 ## 0. PostgreSQL Check (Windows)
 
 1. Verify PostgreSQL service is running.

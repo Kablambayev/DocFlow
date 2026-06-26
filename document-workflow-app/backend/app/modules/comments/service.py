@@ -18,6 +18,9 @@ from app.modules.comments.schemas import (
     DocumentCommentUpdate,
     TimelineItem,
 )
+from app.modules.notifications.models import NotificationType
+from app.modules.notifications.repository import NotificationRepository
+from app.modules.notifications.service import NotificationService
 from app.modules.users.models import User
 
 
@@ -25,6 +28,7 @@ class CommentService:
     def __init__(self, repository: CommentRepository):
         self.repository = repository
         self.audit_service = AuditService(AuditRepository(self.repository.db))
+        self.notification_service = NotificationService(NotificationRepository(self.repository.db))
 
     def list_comments(self, document_id: UUID, user: User) -> list[DocumentCommentRead]:
         document = self._get_document(document_id)
@@ -41,6 +45,7 @@ class CommentService:
             raise AppError("Comment is required", code="COMMENT_REQUIRED", status_code=422)
         comment = self.repository.create_comment(document_id, user.id, text, CommentType.GENERAL, payload.parent_comment_id)
         self.audit_service.log("document_comment", comment.id, "document_comment_created", user_id=user.id, new_values_json={"document_id": str(document_id), "comment_id": str(comment.id)})
+        self._notify_general_comment(document, comment, user)
         self.repository.db.commit()
         return self._read(comment)
 
@@ -196,3 +201,20 @@ class CommentService:
         if action == "document_file_deleted":
             return "file_deleted"
         return action
+
+    def _notify_general_comment(self, document, comment, user: User) -> None:
+        approver_ids = set(self.notification_service.approver_ids_for_document(document.id))
+        recipients = approver_ids if user.id == document.author_id else approver_ids | {document.author_id}
+        recipients.discard(user.id)
+        actor_name = self.repository.get_user_name(user.id) or "Пользователь"
+        self.notification_service.safe_notify_users(
+            recipients,
+            actor_id=user.id,
+            notification_type=NotificationType.DOCUMENT_COMMENT_CREATED,
+            title="Новый комментарий",
+            message=f"{actor_name} добавил комментарий к документу {document.number}",
+            entity_type="comment",
+            entity_id=comment.id,
+            document_id=document.id,
+            payload={"document_number": document.number, "document_title": document.title},
+        )
