@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { PropsWithChildren } from "react";
 
+import { AuthProvider } from "../shared/auth/AuthContext";
+
 export const AppProviders = ({ children }: PropsWithChildren) => {
   const queryClient = useMemo(() => new QueryClient(), []);
 
@@ -16,7 +18,9 @@ export const AppProviders = ({ children }: PropsWithChildren) => {
         },
       }}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>{children}</AuthProvider>
+      </QueryClientProvider>
     </ConfigProvider>
   );
 };

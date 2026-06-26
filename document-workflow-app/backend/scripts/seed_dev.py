@@ -15,8 +15,8 @@ if str(ROOT_DIR) not in sys.path:
 from app.db.session import SessionLocal
 from app.modules.document_types.models import DocumentType, DocumentTypeVersion, VersionStatus
 from app.modules.documents.models import Document, DocumentApprovalStatus
-from app.modules.roles.models import Role  # noqa: F401
-from app.modules.users.models import User
+from app.modules.roles.models import Role
+from app.modules.users.models import Permission, User
 from app.modules.workflow.models import ApprovalMatrixRule, ApprovalRoute, ApprovalRouteVersion
 
 
@@ -29,6 +29,119 @@ def get_or_create_user(db, email: str, full_name: str) -> User:
     db.add(user)
     db.flush()
     return user
+
+
+PERMISSIONS = [
+    ("admin.access", "Admin access"),
+    ("document.read", "Read documents"),
+    ("document.create", "Create documents"),
+    ("document.update", "Update documents"),
+    ("document.submit", "Submit documents"),
+    ("document.withdraw", "Withdraw documents"),
+    ("document.approve", "Approve documents"),
+    ("document.reject", "Reject documents"),
+    ("document_type.read", "Read document types"),
+    ("document_type.create", "Create document types"),
+    ("document_type.update", "Update document types"),
+    ("document_type.publish", "Publish document types"),
+    ("approval_route.read", "Read approval routes"),
+    ("approval_route.create", "Create approval routes"),
+    ("approval_route.update", "Update approval routes"),
+    ("approval_route.publish", "Publish approval routes"),
+    ("approval_matrix.read", "Read approval matrix"),
+    ("approval_matrix.create", "Create approval matrix"),
+    ("approval_matrix.update", "Update approval matrix"),
+    ("approval_matrix.delete", "Delete approval matrix"),
+    ("user.read", "Read users"),
+    ("user.create", "Create users"),
+    ("user.update", "Update users"),
+    ("role.read", "Read roles"),
+    ("role.create", "Create roles"),
+    ("role.update", "Update roles"),
+    ("permission.read", "Read permissions"),
+    ("task.read", "Read tasks"),
+    ("audit.read", "Read audit"),
+]
+
+ROLE_PERMISSIONS = {
+    "admin": [code for code, _ in PERMISSIONS],
+    "document_user": [
+        "document.read",
+        "document.create",
+        "document.update",
+        "document.submit",
+        "document.withdraw",
+        "document_type.read",
+    ],
+    "approver": ["document.read", "document.approve", "document.reject", "task.read"],
+    "document_constructor": [
+        "document_type.read",
+        "document_type.create",
+        "document_type.update",
+        "document_type.publish",
+    ],
+    "workflow_admin": [
+        "approval_route.read",
+        "approval_route.create",
+        "approval_route.update",
+        "approval_route.publish",
+        "approval_matrix.read",
+        "approval_matrix.create",
+        "approval_matrix.update",
+        "approval_matrix.delete",
+        "document_type.read",
+    ],
+    "user_admin": [
+        "user.read",
+        "user.create",
+        "user.update",
+        "role.read",
+        "role.create",
+        "role.update",
+        "permission.read",
+    ],
+}
+
+ROLE_NAMES = {
+    "admin": "Administrator",
+    "document_user": "Document user",
+    "approver": "Approver",
+    "document_constructor": "Document constructor",
+    "workflow_admin": "Workflow administrator",
+    "user_admin": "User administrator",
+}
+
+
+def seed_permissions_and_roles(db) -> dict[str, Role]:
+    permissions_by_code: dict[str, Permission] = {}
+    for code, name in PERMISSIONS:
+        permission = db.scalar(select(Permission).where(Permission.code == code))
+        if permission is None:
+            permission = Permission(code=code, name=name, description=None)
+            db.add(permission)
+            db.flush()
+        permissions_by_code[code] = permission
+
+    roles_by_code: dict[str, Role] = {}
+    for code, permission_codes in ROLE_PERMISSIONS.items():
+        role = db.scalar(select(Role).where(Role.code == code))
+        if role is None:
+            role = Role(code=code, name=ROLE_NAMES[code], description=None, is_active=True)
+            db.add(role)
+            db.flush()
+        role.is_active = True
+        for permission_code in permission_codes:
+            permission = permissions_by_code[permission_code]
+            if permission not in role.permissions:
+                role.permissions.append(permission)
+        roles_by_code[code] = role
+
+    return roles_by_code
+
+
+def assign_role(user: User, role: Role) -> None:
+    if role not in user.roles:
+        user.roles.append(role)
 
 
 def get_or_create_document_type(db) -> DocumentType:
@@ -212,8 +325,13 @@ def get_or_create_draft_document(db, document_type_id, doc_type_version_id, auth
 def main() -> None:
     db = SessionLocal()
     try:
+        roles = seed_permissions_and_roles(db)
+        admin = get_or_create_user(db, "admin@example.com", "Admin User")
         author = get_or_create_user(db, "author@example.com", "Author User")
         approver = get_or_create_user(db, "approver@example.com", "Approver User")
+        assign_role(admin, roles["admin"])
+        assign_role(author, roles["document_user"])
+        assign_role(approver, roles["approver"])
 
         doc_type = get_or_create_document_type(db)
         doc_type_version = get_or_create_published_doc_type_version(db, doc_type.id)
@@ -227,6 +345,7 @@ def main() -> None:
         db.commit()
 
         print("Seed completed")
+        print(f"admin_id={admin.id}")
         print(f"author_id={author.id}")
         print(f"approver_id={approver.id}")
         print(f"document_type_id={doc_type.id}")

@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import status
 
 from app.core.exceptions import AppError
+from app.core.security import get_user_permission_codes
 from app.modules.audit.repository import AuditRepository
 from app.modules.audit.service import AuditService
 from app.modules.document_types.models import VersionStatus
@@ -20,14 +21,41 @@ class DocumentService:
         self.repository = repository
         self.audit_service = AuditService(AuditRepository(self.repository.db))
 
-    def list_documents(self):
-        return self.repository.list()
+    def list_documents(self, user_id: UUID):
+        if self._is_admin(user_id):
+            return self.repository.list()
+        return self.repository.list_visible_for_user(user_id)
 
-    def get_document(self, document_id: UUID):
+    def get_document(self, document_id: UUID, user_id: UUID | None = None):
+        doc = self.repository.get(document_id)
+        if doc is None:
+            raise AppError("Document not found", code="DOCUMENT_NOT_FOUND", status_code=status.HTTP_404_NOT_FOUND)
+        if user_id is not None and not self._can_access_document(doc, user_id):
+            raise AppError("Document access denied", code="DOCUMENT_ACCESS_DENIED", status_code=403)
+        return doc
+
+    def _get_document_unchecked(self, document_id: UUID):
         doc = self.repository.get(document_id)
         if doc is None:
             raise AppError("Document not found", code="DOCUMENT_NOT_FOUND", status_code=status.HTTP_404_NOT_FOUND)
         return doc
+
+    def _is_admin(self, user_id: UUID) -> bool:
+        return "admin.access" in get_user_permission_codes(self.repository.db, user_id)
+
+    def _can_access_document(self, doc, user_id: UUID) -> bool:
+        return (
+            self._is_admin(user_id)
+            or doc.author_id == user_id
+            or self.repository.user_has_task_for_document(doc.id, user_id)
+        )
+
+    def _ensure_author(self, doc, user_id: UUID) -> None:
+        if not self._is_admin(user_id) and doc.author_id != user_id:
+            raise AppError("Document access denied", code="DOCUMENT_ACCESS_DENIED", status_code=403)
+
+    def list_all_documents(self):
+        return self.repository.list()
 
     def create_document(self, payload: DocumentCreate):
         self._validate_document_type_links(payload.document_type_id, payload.document_type_version_id)
@@ -39,8 +67,9 @@ class DocumentService:
         self.audit_service.log("document", doc.id, "document_created", user_id=payload.author_id, new_values_json={"id": str(doc.id)})
         return doc
 
-    def update_document(self, document_id: UUID, payload: DocumentUpdate):
-        doc = self.get_document(document_id)
+    def update_document(self, document_id: UUID, payload: DocumentUpdate, user_id: UUID):
+        doc = self._get_document_unchecked(document_id)
+        self._ensure_author(doc, user_id)
         if doc.approval_status not in [DocumentApprovalStatus.DRAFT, DocumentApprovalStatus.WITHDRAWN]:
             raise AppError(
                 "Document cannot be edited in current status",
@@ -67,12 +96,15 @@ class DocumentService:
         return updated
 
     def submit_document(self, document_id: UUID, user_id: UUID):
+        doc = self._get_document_unchecked(document_id)
+        self._ensure_author(doc, user_id)
         engine = WorkflowEngine(self.repository.db, self.audit_service)
         engine.submit_document(document_id, user_id)
-        return self.get_document(document_id)
+        return self.get_document(document_id, user_id)
 
     def withdraw_document(self, document_id: UUID, user_id: UUID):
-        doc = self.get_document(document_id)
+        doc = self._get_document_unchecked(document_id)
+        self._ensure_author(doc, user_id)
         if doc.approval_status != DocumentApprovalStatus.ON_APPROVAL:
             raise AppError(
                 "Document cannot be withdrawn in current status",

@@ -23,3 +23,11 @@ if (storedUserId) {
   apiClient.defaults.headers.common["X-User-Id"] = storedUserId;
 }
 
+apiClient.interceptors.request.use((config) => {
+  const userId = localStorage.getItem("docflow_user_id");
+  if (userId) {
+    config.headers["X-User-Id"] = userId;
+  }
+  return config;
+});
+

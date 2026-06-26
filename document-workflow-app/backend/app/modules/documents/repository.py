@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.orm import Session
 
 from app.modules.document_types.models import DocumentType, DocumentTypeVersion, VersionStatus
@@ -27,8 +27,25 @@ class DocumentRepository:
         stmt: Select[tuple[Document]] = select(Document).order_by(Document.created_at.desc())
         return list(self.db.scalars(stmt))
 
+    def list_visible_for_user(self, user_id: UUID) -> list[Document]:
+        stmt = (
+            select(Document)
+            .outerjoin(ApprovalTask, ApprovalTask.document_id == Document.id)
+            .where(or_(Document.author_id == user_id, ApprovalTask.approver_id == user_id))
+            .distinct()
+            .order_by(Document.created_at.desc())
+        )
+        return list(self.db.scalars(stmt))
+
     def get(self, document_id: UUID) -> Document | None:
         return self.db.get(Document, document_id)
+
+    def user_has_task_for_document(self, document_id: UUID, user_id: UUID) -> bool:
+        stmt = select(ApprovalTask.id).where(
+            ApprovalTask.document_id == document_id,
+            ApprovalTask.approver_id == user_id,
+        )
+        return self.db.scalar(stmt) is not None
 
     def create(self, payload: DocumentCreate) -> Document:
         doc = Document(

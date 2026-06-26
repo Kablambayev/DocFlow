@@ -5,11 +5,13 @@ import { AdminV2Page } from "../pages/admin/AdminV2Page";
 import { ApprovalMatrixV2Page } from "../pages/admin/ApprovalMatrixV2Page";
 import { ApprovalRoutesV2Page } from "../pages/admin/ApprovalRoutesV2Page";
 import { DocumentTypesAdminV2Page } from "../pages/admin/DocumentTypesAdminV2Page";
+import { RolesPermissionsPage } from "../pages/admin/RolesPermissionsPage";
 import { UsersPage } from "../pages/admin/UsersPage";
 import { CreateDocumentV2Page } from "../pages/documents/CreateDocumentV2Page";
 import { DocumentCardV2Page } from "../pages/documents/DocumentCardV2Page";
 import { DocumentsV2Page } from "../pages/documents/DocumentsV2Page";
 import { MyTasksV2Page } from "../pages/tasks/MyTasksV2Page";
+import { RequirePermission } from "../shared/auth/RequirePermission";
 import { AppLayoutV2 } from "../shared/ui/AppLayoutV2";
 
 export const menuItems = [
@@ -27,16 +29,17 @@ export const router = createBrowserRouter([
     path: "/",
     element: <AppLayoutV2 menuItems={menuItems} />,
     children: [
-      { index: true, element: <DocumentsV2Page /> },
-      { path: "documents", element: <DocumentsV2Page /> },
-      { path: "documents/new", element: <CreateDocumentV2Page /> },
-      { path: "documents/:id", element: <DocumentCardV2Page /> },
-      { path: "tasks", element: <MyTasksV2Page /> },
-      { path: "admin", element: <AdminV2Page /> },
-      { path: "admin/document-types", element: <DocumentTypesAdminV2Page /> },
-      { path: "admin/routes", element: <ApprovalRoutesV2Page /> },
-      { path: "admin/matrix", element: <ApprovalMatrixV2Page /> },
-      { path: "admin/users", element: <UsersPage /> },
+      { index: true, element: <RequirePermission permission="document.read"><DocumentsV2Page /></RequirePermission> },
+      { path: "documents", element: <RequirePermission permission="document.read"><DocumentsV2Page /></RequirePermission> },
+      { path: "documents/new", element: <RequirePermission permission="document.create"><CreateDocumentV2Page /></RequirePermission> },
+      { path: "documents/:id", element: <RequirePermission permission="document.read"><DocumentCardV2Page /></RequirePermission> },
+      { path: "tasks", element: <RequirePermission anyOf={["task.read", "document.approve"]}><MyTasksV2Page /></RequirePermission> },
+      { path: "admin", element: <RequirePermission anyOf={["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"]}><AdminV2Page /></RequirePermission> },
+      { path: "admin/document-types", element: <RequirePermission permission="document_type.read"><DocumentTypesAdminV2Page /></RequirePermission> },
+      { path: "admin/routes", element: <RequirePermission permission="approval_route.read"><ApprovalRoutesV2Page /></RequirePermission> },
+      { path: "admin/matrix", element: <RequirePermission permission="approval_matrix.read"><ApprovalMatrixV2Page /></RequirePermission> },
+      { path: "admin/users", element: <RequirePermission permission="user.read"><UsersPage /></RequirePermission> },
+      { path: "admin/roles", element: <RequirePermission anyOf={["role.read", "permission.read"]}><RolesPermissionsPage /></RequirePermission> },
     ],
   },
 ]);

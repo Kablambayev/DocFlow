@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.security import require_permission
 from app.db.session import get_db
 from app.modules.document_types.repository import DocumentTypeRepository
 from app.modules.document_types.schemas import (
@@ -15,6 +16,7 @@ from app.modules.document_types.schemas import (
     SchemaValidationResult,
 )
 from app.modules.document_types.service import DocumentTypeService
+from app.modules.users.models import User
 
 router = APIRouter(prefix="/document-type-versions", tags=["document-types"])
 
@@ -26,6 +28,7 @@ def get_service(db: Session = Depends(get_db)) -> DocumentTypeService:
 @router.post("/{id}/publish", response_model=DocumentTypeVersionRead)
 def publish_document_type_version(
     id: UUID,
+    _: User = Depends(require_permission("document_type.publish")),
     service: DocumentTypeService = Depends(get_service),
 ) -> DocumentTypeVersionRead:
     return service.publish_version(id)
@@ -34,6 +37,7 @@ def publish_document_type_version(
 @router.get("/{id}", response_model=DocumentTypeVersionRead)
 def get_document_type_version(
     id: UUID,
+    _: User = Depends(require_permission("document_type.read")),
     service: DocumentTypeService = Depends(get_service),
 ) -> DocumentTypeVersionRead:
     return service.get_version(id)
@@ -43,6 +47,7 @@ def get_document_type_version(
 def update_document_type_version(
     id: UUID,
     payload: DocumentTypeVersionUpdate,
+    _: User = Depends(require_permission("document_type.update")),
     service: DocumentTypeService = Depends(get_service),
 ) -> DocumentTypeVersionRead:
     return service.update_version(id, payload)
@@ -52,6 +57,7 @@ def update_document_type_version(
 def add_document_type_section(
     id: UUID,
     payload: DocumentTypeSectionRequest,
+    _: User = Depends(require_permission("document_type.update")),
     service: DocumentTypeService = Depends(get_service),
 ) -> DocumentTypeVersionRead:
     return service.add_section(id, payload)
@@ -62,6 +68,7 @@ def update_document_type_section(
     id: UUID,
     section_code: str,
     payload: DocumentTypeSectionRequest,
+    _: User = Depends(require_permission("document_type.update")),
     service: DocumentTypeService = Depends(get_service),
 ) -> DocumentTypeVersionRead:
     return service.update_section(id, section_code, payload)
@@ -71,6 +78,7 @@ def update_document_type_section(
 def delete_document_type_section(
     id: UUID,
     section_code: str,
+    _: User = Depends(require_permission("document_type.update")),
     service: DocumentTypeService = Depends(get_service),
 ) -> DocumentTypeVersionRead:
     return service.delete_section(id, section_code)
@@ -80,6 +88,7 @@ def delete_document_type_section(
 def add_document_type_field(
     id: UUID,
     payload: DocumentTypeFieldRequest,
+    _: User = Depends(require_permission("document_type.update")),
     service: DocumentTypeService = Depends(get_service),
 ) -> DocumentTypeVersionRead:
     return service.add_field(id, payload)
@@ -90,6 +99,7 @@ def update_document_type_field(
     id: UUID,
     field_code: str,
     payload: DocumentTypeFieldRequest,
+    _: User = Depends(require_permission("document_type.update")),
     service: DocumentTypeService = Depends(get_service),
 ) -> DocumentTypeVersionRead:
     return service.update_field(id, field_code, payload)
@@ -99,6 +109,7 @@ def update_document_type_field(
 def delete_document_type_field(
     id: UUID,
     field_code: str,
+    _: User = Depends(require_permission("document_type.update")),
     service: DocumentTypeService = Depends(get_service),
 ) -> DocumentTypeVersionRead:
     return service.delete_field(id, field_code)
@@ -107,6 +118,7 @@ def delete_document_type_field(
 @router.post("/{id}/validate-schema", response_model=SchemaValidationResult)
 def validate_document_type_schema(
     id: UUID,
+    _: User = Depends(require_permission("document_type.read")),
     service: DocumentTypeService = Depends(get_service),
 ) -> SchemaValidationResult:
     return service.validate_schema(id)
@@ -115,6 +127,7 @@ def validate_document_type_schema(
 @router.get("", response_model=list[DocumentTypeVersionRead])
 def list_document_type_versions(
     document_type_id: UUID,
+    _: User = Depends(require_permission("document_type.read")),
     service: DocumentTypeService = Depends(get_service),
 ) -> list[DocumentTypeVersionRead]:
     return service.list_versions(document_type_id)
