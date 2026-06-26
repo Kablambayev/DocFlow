@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     postgres_password: str = "postgres"
     database_url: str | None = None
 
+    file_storage_provider: str = "local"
+    local_storage_path: str = "storage/uploads"
+    max_upload_size_mb: int = 25
+    allowed_file_extensions: str = ".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.zip"
+
     @field_validator("debug", mode="before")
     @classmethod
     def parse_debug(cls, value):
@@ -46,6 +51,14 @@ class Settings(BaseSettings):
             f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @property
+    def allowed_file_extension_set(self) -> set[str]:
+        return {
+            item.strip().lower()
+            for item in self.allowed_file_extensions.split(",")
+            if item.strip()
+        }
 
 
 settings = Settings()

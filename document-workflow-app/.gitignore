@@ -12,6 +12,7 @@ pytest-cache-files-*/
 backend/.env
 backend/alembic.ini
 backend/.coverage
+backend/storage/uploads/
 
 frontend/node_modules/
 frontend/dist/

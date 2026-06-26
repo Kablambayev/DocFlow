@@ -119,6 +119,124 @@ Expected output:
 200
 ```
 
+## Stage 5 Files And Attachments Scenario
+
+Stage 5 adds document attachments with local storage. MinIO/S3 is not implemented yet; the backend uses `StorageProvider` and `LocalStorageProvider` so the storage backend can be replaced later without rewriting file business logic.
+
+### Settings
+
+Default backend settings:
+
+```env
+FILE_STORAGE_PROVIDER=local
+LOCAL_STORAGE_PATH=storage/uploads
+MAX_UPLOAD_SIZE_MB=25
+ALLOWED_FILE_EXTENSIONS=.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.zip
+```
+
+Local file content is stored under:
+
+```text
+backend/storage/uploads/documents/{document_id}/{file_id}_{safe_filename}
+```
+
+Original filenames are not used as paths. Downloads are served only through protected API endpoints.
+
+### Permissions
+
+Seed adds:
+
+- `document_file.read`
+- `document_file.upload`
+- `document_file.delete`
+
+Assignments:
+
+- `admin`: all permissions;
+- `document_user`: read/upload/delete document files;
+- `approver`: read document files;
+- constructor/workflow admin roles do not receive file permissions.
+
+File access rules:
+
+- list/download requires `document_file.read` and document visibility;
+- upload requires `document_file.upload`, document visibility, `Draft` or `Withdrawn` status, and document author or admin;
+- delete requires `document_file.delete`, `Draft` or `Withdrawn` status, and document author or admin;
+- approver can read/download files only for documents where they have an approval task;
+- approver cannot upload/delete.
+
+### API Scenario
+
+1. Get or create a Draft document.
+2. Upload through Swagger:
+
+```text
+POST /api/v1/documents/{document_id}/files
+Header: X-User-Id: author_id
+multipart:
+  file: invoice.pdf
+  field_code: invoiceFile
+```
+
+3. List:
+
+```text
+GET /api/v1/documents/{document_id}/files
+```
+
+4. Download:
+
+```text
+GET /api/v1/files/{file_id}/download
+```
+
+5. Delete:
+
+```text
+DELETE /api/v1/files/{file_id}
+```
+
+Expected delete response:
+
+```json
+{
+  "status": "deleted"
+}
+```
+
+### UI Scenario
+
+1. Run backend and frontend.
+2. Open a Draft document card as `author@example.com`.
+3. Attach a PDF in the `Files` panel.
+4. Verify the file appears in the list.
+5. Download it.
+6. Delete it.
+7. Open an Approved document and verify upload/delete are unavailable.
+8. Open a document with an approval task as `approver@example.com` and verify files can be read/downloaded but not uploaded/deleted.
+
+### Automated Tests
+
+Run:
+
+```bash
+cd backend
+python.exe -m pytest
+```
+
+`backend/tests/test_files.py` covers:
+
+- missing `X-User-Id` returns 401;
+- author uploads to own Draft document;
+- author lists files;
+- author downloads files;
+- author soft-deletes own Draft file;
+- approver reads/downloads after task access;
+- approver cannot upload;
+- author cannot upload to Approved document;
+- extension restriction;
+- file size restriction.
+
 ## 0. PostgreSQL Check (Windows)
 
 1. Verify PostgreSQL service is running.

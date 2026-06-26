@@ -139,6 +139,59 @@ Manual frontend RBAC smoke:
 5. Select approver and verify `My tasks` is visible.
 6. Open a protected URL directly and verify the 403 state is rendered.
 
+## Stage 5 Files And Attachments
+
+Documents can now have protected file attachments. Files are stored through a `StorageProvider` abstraction; Stage 5 uses local storage, and MinIO/S3 can be added later behind the same provider boundary.
+
+Local storage settings:
+
+```env
+FILE_STORAGE_PROVIDER=local
+LOCAL_STORAGE_PATH=storage/uploads
+MAX_UPLOAD_SIZE_MB=25
+ALLOWED_FILE_EXTENSIONS=.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.zip
+```
+
+Local files are stored under:
+
+```text
+backend/storage/uploads/documents/{document_id}/{file_id}_{safe_filename}
+```
+
+API endpoints:
+
+- `GET /api/v1/documents/{document_id}/files`
+- `POST /api/v1/documents/{document_id}/files`
+- `GET /api/v1/files/{file_id}/download`
+- `DELETE /api/v1/files/{file_id}`
+
+Required permissions:
+
+- `document_file.read` for list/download;
+- `document_file.upload` for upload;
+- `document_file.delete` for soft delete.
+
+Access is still limited by document visibility: admin, document author, or assigned approver task. Upload/delete are allowed only for `Draft` and `Withdrawn` documents. Author can upload/delete own Draft/Withdrawn document files; admin can do the same through `admin.access`; approver can read/download files for documents where they have a task, but cannot upload or delete.
+
+Swagger upload:
+
+1. Run backend and open `http://127.0.0.1:8000/docs`.
+2. Use `POST /api/v1/documents/{document_id}/files`.
+3. Send `X-User-Id` header, multipart `file`, and optional `field_code`.
+
+UI upload:
+
+1. Open a document card.
+2. Select a dev user with file permissions.
+3. Use the `Files` panel to drag and drop files.
+4. Download or delete files from the list.
+
+Audit actions:
+
+- `document_file_uploaded`
+- `document_file_downloaded`
+- `document_file_deleted`
+
 ## Useful Checks
 
 Backend:

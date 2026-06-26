@@ -1,12 +1,15 @@
-import { Checkbox, DatePicker, Form, Input, InputNumber, Select, Typography, Upload } from "antd";
+import { Checkbox, DatePicker, Form, Input, InputNumber, Select, Typography } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import dayjs from "dayjs";
 
 import type { DynamicFieldSchema, DynamicFormSchema } from "../types/document";
+import { DocumentFilesPanel } from "./DocumentFilesPanel";
 
 interface DynamicFormRendererProps {
   schema: DynamicFormSchema;
   disabled?: boolean;
+  documentId?: string;
+  documentStatus?: string;
 }
 
 const enumOptions = (field: DynamicFieldSchema) =>
@@ -14,7 +17,7 @@ const enumOptions = (field: DynamicFieldSchema) =>
     typeof option === "string" ? { label: option, value: option } : option,
   );
 
-const renderField = (field: DynamicFieldSchema, disabled?: boolean) => {
+const renderField = (field: DynamicFieldSchema, disabled?: boolean, documentId?: string, documentStatus?: string) => {
   const isDisabled = disabled || field.readonly;
   switch (field.type) {
     case "string":
@@ -45,7 +48,10 @@ const renderField = (field: DynamicFieldSchema, disabled?: boolean) => {
     case "reference":
       return <Select placeholder="Reference value" options={[]} disabled={isDisabled} />;
     case "file":
-      return <Upload beforeUpload={() => false}>Загрузить файл</Upload>;
+      if (documentId && documentStatus) {
+        return <DocumentFilesPanel documentId={documentId} documentStatus={documentStatus} fieldCode={field.code} readonly={isDisabled} />;
+      }
+      return <Typography.Text type="secondary">Файл можно будет прикрепить после сохранения документа</Typography.Text>;
     case "table":
       return <Typography.Text type="secondary">TODO: table field renderer</Typography.Text>;
     default:
@@ -66,7 +72,7 @@ export const normalizeDynamicInitialValues = (values: Record<string, unknown> = 
   return result;
 };
 
-export const DynamicFormRenderer = ({ schema, disabled }: DynamicFormRendererProps) => {
+export const DynamicFormRenderer = ({ schema, disabled, documentId, documentStatus }: DynamicFormRendererProps) => {
   const sections = [...schema.sections].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
   return (
@@ -83,7 +89,7 @@ export const DynamicFormRenderer = ({ schema, disabled }: DynamicFormRendererPro
               normalize={(value) => (dayjs.isDayjs(value) ? value.toISOString() : value)}
               rules={field.required ? [{ required: true, message: `Поле ${field.name} обязательно` }] : undefined}
             >
-              {renderField(field, disabled)}
+              {renderField(field, disabled, documentId, documentStatus)}
             </Form.Item>
           ))}
         </div>
