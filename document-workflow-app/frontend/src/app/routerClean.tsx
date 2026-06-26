@@ -1,6 +1,7 @@
 import { AuditOutlined, FileTextOutlined, SettingOutlined, SolutionOutlined } from "@ant-design/icons";
 import { createBrowserRouter } from "react-router-dom";
 
+import { AccountingDictionariesPage } from "../pages/accounting/AccountingDictionariesPage";
 import { AdminV2Page } from "../pages/admin/AdminV2Page";
 import { ApprovalMatrixV2Page } from "../pages/admin/ApprovalMatrixV2Page";
 import { ApprovalRoutesV2Page } from "../pages/admin/ApprovalRoutesV2Page";
@@ -17,6 +18,7 @@ import { AppLayoutV2 } from "../shared/ui/AppLayoutV2";
 export const menuItems = [
   { key: "/documents", label: "Документы", icon: <FileTextOutlined /> },
   { key: "/tasks", label: "Мои задачи", icon: <SolutionOutlined /> },
+  { key: "/accounting", label: "УпрУчет", icon: <AuditOutlined /> },
   { key: "/admin", label: "Администрирование", icon: <SettingOutlined /> },
   { key: "/admin/document-types", label: "Типы документов", icon: <AuditOutlined /> },
   { key: "/admin/routes", label: "Маршруты согласования", icon: <AuditOutlined /> },
@@ -34,6 +36,7 @@ export const router = createBrowserRouter([
       { path: "documents/new", element: <RequirePermission permission="document.create"><CreateDocumentV2Page /></RequirePermission> },
       { path: "documents/:id", element: <RequirePermission permission="document.read"><DocumentCardV2Page /></RequirePermission> },
       { path: "tasks", element: <RequirePermission anyOf={["task.read", "document.approve"]}><MyTasksV2Page /></RequirePermission> },
+      { path: "accounting", element: <RequirePermission permission="accounting.read"><AccountingDictionariesPage /></RequirePermission> },
       { path: "admin", element: <RequirePermission anyOf={["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"]}><AdminV2Page /></RequirePermission> },
       { path: "admin/document-types", element: <RequirePermission permission="document_type.read"><DocumentTypesAdminV2Page /></RequirePermission> },
       { path: "admin/routes", element: <RequirePermission permission="approval_route.read"><ApprovalRoutesV2Page /></RequirePermission> },

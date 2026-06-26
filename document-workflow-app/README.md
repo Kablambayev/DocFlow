@@ -267,6 +267,55 @@ UI smoke:
 6. Switch back to `author@example.com`.
 7. Verify the result notification appears and can be marked as read.
 
+## Stage 8 Management Accounting Dictionaries (\u0423\u043f\u0440\u0423\u0447\u0435\u0442)
+
+Stage 8 adds a management accounting layer with external dictionaries (read-only source = `1C`) and local dictionaries (editable in DocFlow). No 1C sync infrastructure, Keycloak, OAuth2/OIDC, background workers, or message brokers were added in this stage.
+
+Backend additions:
+
+- new module: `backend/app/modules/accounting/` (`models.py`, `schemas.py`, `repository.py`, `service.py`, `router.py`);
+- migrations: `20260626_0005_accounting_dictionaries.py` and `20260626_0006_accounting_updated_at_defaults.py`;
+- router registration in `app/main.py` under `/api/v1/accounting`;
+- dynamic schema `FieldType` supports `dictionary`;
+- document validation supports dictionary checks and contract/org/counterparty consistency.
+
+Accounting permissions:
+
+- `accounting.read`;
+- `accounting.manage`;
+- `accounting.sync`.
+
+Seed adds:
+
+- role `accounting_admin`;
+- user `accounting_admin@example.com`;
+- source dictionaries: organizations, counterparties, contracts, currencies, expense items;
+- local dictionaries: cash flow operation types, projects;
+- `PaymentRequest` published schema enrichment with `management_accounting` dictionary fields.
+
+API endpoints:
+
+- `GET /api/v1/accounting/organizations`
+- `GET /api/v1/accounting/counterparties`
+- `GET /api/v1/accounting/counterparty-contracts` (supports `organization_id` and `counterparty_id` filters)
+- `GET /api/v1/accounting/currencies`
+- `GET /api/v1/accounting/expense-items`
+- `GET|POST|PUT|DELETE /api/v1/accounting/cash-flow-operation-types`
+- `GET|POST|PUT|DELETE /api/v1/accounting/projects`
+
+Frontend additions:
+
+- route `/accounting` and menu item `\u0423\u043f\u0440\u0423\u0447\u0435\u0442` (visible with `accounting.read`);
+- page `AccountingDictionariesPage` with tabs for all dictionaries and CRUD for local ones;
+- `DynamicFormRenderer` supports dictionary fields with remote loading, dependency params (`dependsOn`), and dependent value reset when parent values change.
+
+Backend tests:
+
+- `backend/tests/test_accounting_dictionaries.py`
+- `backend/tests/test_dictionary_fields_validation.py`
+
+They cover permission boundaries, list/filter behavior, local CRUD soft-delete, valid dictionary submission, unknown dictionary ids, and contract-org-counterparty mismatch validation.
+
 ## Useful Checks
 
 Backend:

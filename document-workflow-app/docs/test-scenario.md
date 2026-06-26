@@ -494,6 +494,93 @@ python.exe -m pytest
 - comment creates participant notification;
 - file upload creates participant notification.
 
+## Stage 8 Management Accounting Dictionaries Scenario
+
+Stage 8 adds `\u0423\u043f\u0440\u0423\u0447\u0435\u0442` dictionaries and dynamic `dictionary` fields in document schemas. Source dictionaries are read-only snapshots (from `1C` seed data), and local dictionaries are managed in DocFlow.
+
+### Permissions
+
+Seed adds:
+
+- `accounting.read`
+- `accounting.manage`
+- `accounting.sync`
+
+Assignments:
+
+- `admin`: all permissions;
+- `document_user` and `approver`: `accounting.read`;
+- `accounting_admin`: `accounting.read`, `accounting.manage`, `accounting.sync`.
+
+### API Endpoints
+
+```text
+GET    /api/v1/accounting/organizations
+GET    /api/v1/accounting/counterparties
+GET    /api/v1/accounting/counterparty-contracts
+GET    /api/v1/accounting/currencies
+GET    /api/v1/accounting/expense-items
+GET    /api/v1/accounting/cash-flow-operation-types
+POST   /api/v1/accounting/cash-flow-operation-types
+PUT    /api/v1/accounting/cash-flow-operation-types/{id}
+DELETE /api/v1/accounting/cash-flow-operation-types/{id}
+GET    /api/v1/accounting/projects
+POST   /api/v1/accounting/projects
+PUT    /api/v1/accounting/projects/{id}
+DELETE /api/v1/accounting/projects/{id}
+```
+
+`counterparty-contracts` behavior:
+
+- if both `organization_id` and `counterparty_id` are empty, API returns an empty list;
+- when filters are provided, contracts are restricted to selected organization+counterparty.
+
+### UI Scenario
+
+1. Run backend and frontend.
+2. Login as admin (or any user with `accounting.read`).
+3. Open `\u0423\u043f\u0440\u0423\u0447\u0435\u0442` in the sidebar.
+4. Verify tabs load source dictionaries: organizations, counterparties, contracts, currencies, expense items.
+5. In contracts tab, set organization and counterparty filters and verify only matching contracts are shown.
+6. In `\u0412\u0438\u0434\u044b \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0439 \u0414\u0421`, create, edit, then deactivate a local entry.
+7. In `\u041f\u0440\u043e\u0435\u043a\u0442\u044b`, create, edit, then deactivate a local entry.
+8. Open `Documents -> Create document` for `PaymentRequest`.
+9. Verify `\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0447\u0435\u0441\u043a\u0438\u0439 \u0443\u0447\u0435\u0442` section appears with dictionary fields.
+10. Select organization + counterparty and verify contract field becomes enabled and filtered.
+11. Change organization or counterparty and verify already selected contract is auto-cleared when no longer valid.
+12. Save and submit document; verify workflow and approvals still work.
+
+### Validation Scenario (Swagger)
+
+1. Create `PaymentRequest` with valid dictionary ids from active dictionaries.
+2. Repeat with random `project_id` UUID.
+3. Verify response is `422` with `DOCUMENT_VALIDATION_ERROR` and field details.
+4. Repeat with mismatched `contract_id` for selected organization/counterparty.
+5. Verify response is `422` with contract mismatch reason.
+
+### Automated Tests
+
+Run:
+
+```bash
+cd backend
+python.exe -m pytest
+```
+
+Stage 8 coverage includes:
+
+- `backend/tests/test_accounting_dictionaries.py`
+- `backend/tests/test_dictionary_fields_validation.py`
+
+Covered checks:
+
+- read/manage permission boundaries;
+- contracts filter semantics by organization/counterparty;
+- local dictionaries CRUD + soft delete;
+- valid dictionary document payload;
+- invalid dictionary UUID rejection;
+- contract mismatch rejection.
+
 ## 0. PostgreSQL Check (Windows)
 
 1. Verify PostgreSQL service is running.

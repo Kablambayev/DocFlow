@@ -8,9 +8,15 @@ export type DynamicFieldType =
   | "datetime"
   | "boolean"
   | "enum"
+  | "dictionary"
   | "reference"
   | "file"
   | "table";
+
+export interface DynamicFieldDependency {
+  field: string;
+  param: string;
+}
 
 export interface DynamicFieldSchema {
   code: string;
@@ -24,6 +30,11 @@ export interface DynamicFieldSchema {
     precision?: number;
     min?: number;
     max?: number;
+    dictionary?: string;
+    valueField?: string;
+    labelField?: string;
+    searchable?: boolean;
+    dependsOn?: DynamicFieldDependency[];
   };
   validation?: Record<string, unknown>;
 }

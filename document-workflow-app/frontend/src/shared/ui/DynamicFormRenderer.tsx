@@ -1,8 +1,19 @@
 import { Checkbox, DatePicker, Form, Input, InputNumber, Select, Typography } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import dayjs from "dayjs";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import type { DynamicFieldSchema, DynamicFormSchema } from "../types/document";
+import {
+  getCashFlowOperationTypes,
+  getCounterparties,
+  getCounterpartyContracts,
+  getCurrencies,
+  getExpenseItems,
+  getOrganizations,
+  getProjects,
+} from "../../entities/accounting";
 import { DocumentFilesPanel } from "./DocumentFilesPanel";
 
 interface DynamicFormRendererProps {
@@ -16,6 +27,23 @@ const enumOptions = (field: DynamicFieldSchema) =>
   (field.settings?.options ?? []).map((option) =>
     typeof option === "string" ? { label: option, value: option } : option,
   );
+
+const dictionaryLoaders = {
+  organizations: getOrganizations,
+  counterparties: getCounterparties,
+  counterparty_contracts: getCounterpartyContracts,
+  currencies: getCurrencies,
+  expense_items: getExpenseItems,
+  cash_flow_operation_types: getCashFlowOperationTypes,
+  projects: getProjects,
+} as const;
+
+const getDictionaryValue = (item: unknown, key: string): unknown => {
+  if (typeof item !== "object" || item === null) {
+    return undefined;
+  }
+  return (item as Record<string, unknown>)[key];
+};
 
 const renderField = (field: DynamicFieldSchema, disabled?: boolean, documentId?: string, documentStatus?: string) => {
   const isDisabled = disabled || field.readonly;
@@ -59,6 +87,77 @@ const renderField = (field: DynamicFieldSchema, disabled?: boolean, documentId?:
   }
 };
 
+const DictionaryField = ({ field, disabled }: { field: DynamicFieldSchema; disabled?: boolean }) => {
+  const form = Form.useFormInstance();
+  const isDisabled = disabled || field.readonly;
+  const settings = field.settings ?? {};
+  const dictionaryName = settings.dictionary;
+  const valueField = settings.valueField ?? "id";
+  const labelField = settings.labelField ?? "name";
+  const dependsOn = settings.dependsOn ?? [];
+  const dependencies = Form.useWatch([], form) as Record<string, unknown> | undefined;
+  const dependsReady = dependsOn.every((dependency) => Boolean(dependencies?.[dependency.field]));
+  const isContractDictionary = dictionaryName === "counterparty_contracts";
+
+  const loader = dictionaryName ? dictionaryLoaders[dictionaryName as keyof typeof dictionaryLoaders] : undefined;
+  if (!loader) {
+    if (dictionaryName) {
+      console.warn(`Unknown dictionary loader: ${dictionaryName}`);
+    }
+    return <Select disabled placeholder="Неизвестный справочник" options={[]} />;
+  }
+
+  const params: Record<string, unknown> = { is_active: true, limit: 50, offset: 0 };
+  for (const dependency of dependsOn) {
+    params[dependency.param] = dependencies?.[dependency.field] ?? undefined;
+  }
+
+  const queryEnabled = !isDisabled && (!dependsOn.length || dependsReady);
+  const query = useQuery({
+    queryKey: ["dictionary", dictionaryName, params],
+    queryFn: () => loader(params as never),
+    enabled: queryEnabled,
+  });
+
+  useEffect(() => {
+    if (!dependsOn.length) return;
+    const currentValue = form.getFieldValue(field.code);
+    if (!dependsReady && currentValue) {
+      form.setFieldValue(field.code, undefined);
+      return;
+    }
+    if (!currentValue) return;
+    const exists = (query.data ?? []).some((item) => String(getDictionaryValue(item, valueField)) === String(currentValue));
+    if (!exists) {
+      form.setFieldValue(field.code, undefined);
+    }
+  }, [dependsReady, field.code, form, query.data, valueField, dependsOn.length]);
+
+  const options = (query.data ?? []).map((item) => ({
+    value: String(getDictionaryValue(item, valueField)),
+    label: String(getDictionaryValue(item, labelField) ?? getDictionaryValue(item, "name") ?? getDictionaryValue(item, "code") ?? getDictionaryValue(item, "id")),
+  }));
+
+  const blockedByDependencies = dependsOn.length > 0 && !dependsReady;
+  const placeholder = blockedByDependencies
+    ? isContractDictionary
+      ? "Сначала выберите организацию и контрагента"
+      : "Сначала заполните зависимые поля"
+    : "Выберите значение";
+
+  return (
+    <Select
+      showSearch={settings.searchable !== false}
+      allowClear
+      disabled={isDisabled || blockedByDependencies}
+      loading={query.isLoading}
+      placeholder={placeholder}
+      options={options}
+      filterOption={(input, option) => String(option?.label ?? "").toLowerCase().includes(input.toLowerCase())}
+    />
+  );
+};
+
 export const normalizeDynamicInitialValues = (values: Record<string, unknown> = {}, schema: DynamicFormSchema) => {
   const result: Record<string, unknown> = { ...values };
   for (const section of schema.sections) {
@@ -89,7 +188,11 @@ export const DynamicFormRenderer = ({ schema, disabled, documentId, documentStat
               normalize={(value) => (dayjs.isDayjs(value) ? value.toISOString() : value)}
               rules={field.required ? [{ required: true, message: `Поле ${field.name} обязательно` }] : undefined}
             >
-              {renderField(field, disabled, documentId, documentStatus)}
+              {field.type === "dictionary" ? (
+                <DictionaryField field={field} disabled={disabled} />
+              ) : (
+                renderField(field, disabled, documentId, documentStatus)
+              )}
             </Form.Item>
           ))}
         </div>

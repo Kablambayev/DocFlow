@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
+from app.modules.accounting.router import router as accounting_router
 from app.modules.comments.router import router as comments_router
 from app.modules.document_types.router import router as document_type_router
 from app.modules.document_types.version_router import router as document_type_version_router
@@ -48,3 +49,4 @@ fastapi_app.include_router(comments_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(notifications_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(workflow_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(roles_router, prefix=settings.api_v1_prefix)
+fastapi_app.include_router(accounting_router, prefix=settings.api_v1_prefix)

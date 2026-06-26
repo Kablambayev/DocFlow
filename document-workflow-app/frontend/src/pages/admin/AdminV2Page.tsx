@@ -2,6 +2,7 @@ import { Card, List, Typography } from "antd";
 import { Link } from "react-router-dom";
 
 const items = [
+  { to: "/accounting", label: "УпрУчет" },
   { to: "/admin/document-types", label: "Типы документов" },
   { to: "/admin/routes", label: "Маршруты согласования" },
   { to: "/admin/matrix", label: "Матрица согласования" },

@@ -7,6 +7,7 @@ from fastapi import status
 
 from app.core.exceptions import AppError
 from app.core.security import get_user_permission_codes
+from app.modules.accounting.repository import AccountingRepository
 from app.modules.audit.repository import AuditRepository
 from app.modules.audit.service import AuditService
 from app.modules.document_types.models import VersionStatus
@@ -22,6 +23,7 @@ from app.modules.workflow.engine import WorkflowEngine
 class DocumentService:
     def __init__(self, repository: DocumentRepository):
         self.repository = repository
+        self.accounting_repository = AccountingRepository(self.repository.db)
         self.audit_service = AuditService(AuditRepository(self.repository.db))
         self.notification_service = NotificationService(NotificationRepository(self.repository.db))
 
@@ -163,6 +165,15 @@ class DocumentService:
 
     def _validate_data(self, data_json: dict, schema_json: dict) -> None:
         errors: list[dict[str, str]] = []
+        dictionary_getters = {
+            "organizations": self.accounting_repository.get_active_organization,
+            "counterparties": self.accounting_repository.get_active_counterparty,
+            "counterparty_contracts": self.accounting_repository.get_active_contract,
+            "currencies": self.accounting_repository.get_active_currency,
+            "expense_items": self.accounting_repository.get_active_expense_item,
+            "cash_flow_operation_types": self.accounting_repository.get_active_cash_flow_operation_type,
+            "projects": self.accounting_repository.get_active_project,
+        }
         sections = schema_json.get("sections", [])
         for section in sections:
             for field in section.get("fields", []):
@@ -204,12 +215,64 @@ class DocumentService:
                             allowed_values.append(option)
                     if allowed_values and value not in allowed_values:
                         errors.append({"field": code, "message": "Value is not allowed"})
+                elif field_type == "dictionary":
+                    if not isinstance(value, str):
+                        errors.append({"field": code, "message": "Dictionary value must be a UUID string"})
+                        continue
+                    try:
+                        item_id = UUID(value)
+                    except ValueError:
+                        errors.append({"field": code, "message": "Dictionary value must be a UUID string"})
+                        continue
+
+                    settings = field.get("settings") if isinstance(field.get("settings"), dict) else {}
+                    dictionary_name = settings.get("dictionary") if isinstance(settings, dict) else None
+                    getter = dictionary_getters.get(str(dictionary_name)) if dictionary_name else None
+                    if getter is None:
+                        errors.append({"field": code, "message": f"Unknown dictionary: {dictionary_name}"})
+                        continue
+
+                    dictionary_item = getter(item_id)
+                    if dictionary_item is None:
+                        errors.append({"field": code, "message": "Dictionary item does not exist or inactive"})
+                        continue
+
+                    if str(dictionary_name) == "counterparty_contracts":
+                        selected_organization_id = data_json.get("organization_id")
+                        selected_counterparty_id = data_json.get("counterparty_id")
+                        try:
+                            org_id = UUID(selected_organization_id) if isinstance(selected_organization_id, str) else None
+                            cp_id = UUID(selected_counterparty_id) if isinstance(selected_counterparty_id, str) else None
+                        except ValueError:
+                            org_id = None
+                            cp_id = None
+
+                        if org_id is None or cp_id is None:
+                            errors.append(
+                                {
+                                    "field": code,
+                                    "message": "Contract requires selected organization_id and counterparty_id",
+                                }
+                            )
+                            continue
+
+                        if dictionary_item.organization_id != org_id or dictionary_item.counterparty_id != cp_id:
+                            errors.append(
+                                {
+                                    "field": code,
+                                    "message": "Contract does not match selected organization and counterparty",
+                                }
+                            )
 
         if errors:
             raise AppError(
-                "Document validation failed",
-                code="VALIDATION_ERROR",
+                "Document data validation failed",
+                code="DOCUMENT_VALIDATION_ERROR",
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                details=errors,
+                details={
+                    "field": errors[0]["field"],
+                    "reason": errors[0]["message"],
+                    "errors": errors,
+                },
             )
 

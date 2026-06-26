@@ -43,7 +43,21 @@ import type {
 } from "../../entities/document-type";
 import { DynamicFormRenderer } from "../../shared/ui/DynamicFormRenderer";
 
-const fieldTypes: FieldType[] = ["string", "text", "integer", "decimal", "money", "date", "datetime", "boolean", "enum", "reference", "file", "table"];
+const fieldTypes: FieldType[] = [
+  "string",
+  "text",
+  "integer",
+  "decimal",
+  "money",
+  "date",
+  "datetime",
+  "boolean",
+  "enum",
+  "dictionary",
+  "reference",
+  "file",
+  "table",
+];
 const defaultSchema = { sections: [{ code: "main", name: "Основные данные", sortOrder: 10, fields: [] }] };
 
 const apiError = (error: unknown, fallback: string) =>

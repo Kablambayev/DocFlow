@@ -74,6 +74,7 @@ FieldType = Literal[
     "datetime",
     "boolean",
     "enum",
+    "dictionary",
     "reference",
     "file",
     "table",

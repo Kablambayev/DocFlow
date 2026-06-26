@@ -8,6 +8,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
+from app.modules.accounting.models import (
+    AccountingCashFlowOperationType,
+    AccountingCounterparty,
+    AccountingCounterpartyContract,
+    AccountingCurrency,
+    AccountingExpenseItem,
+    AccountingOrganization,
+    AccountingProject,
+)
 from app.main import app
 from app.modules.document_types.models import DocumentType, DocumentTypeVersion, VersionStatus
 from app.modules.documents.models import Document
@@ -69,11 +78,49 @@ def seed_refs(db) -> dict[str, object]:
     route = db.scalar(select(ApprovalRoute).where(ApprovalRoute.document_type_id == document_type.id))
     assert route is not None
 
-    return {"document_type": document_type, "document_type_version": document_type_version, "route": route}
+    organization = db.scalar(select(AccountingOrganization).where(AccountingOrganization.code == "ORG-001"))
+    counterparty = db.scalar(select(AccountingCounterparty).where(AccountingCounterparty.code == "CNT-001"))
+    contract = db.scalar(select(AccountingCounterpartyContract).where(AccountingCounterpartyContract.number == "142-П"))
+    currency = db.scalar(select(AccountingCurrency).where(AccountingCurrency.code == "KZT"))
+    cash_flow_operation_type = db.scalar(
+        select(AccountingCashFlowOperationType).where(AccountingCashFlowOperationType.code == "supplier_payment")
+    )
+    project = db.scalar(select(AccountingProject).where(AccountingProject.code == "MAIN"))
+    expense_item = db.scalar(select(AccountingExpenseItem).where(AccountingExpenseItem.code == "EXP-002"))
+
+    assert organization is not None
+    assert counterparty is not None
+    assert contract is not None
+    assert currency is not None
+    assert cash_flow_operation_type is not None
+    assert project is not None
+    assert expense_item is not None
+
+    return {
+        "document_type": document_type,
+        "document_type_version": document_type_version,
+        "route": route,
+        "accounting_data": {
+            "organization_id": str(organization.id),
+            "counterparty_id": str(counterparty.id),
+            "contract_id": str(contract.id),
+            "currency_id": str(currency.id),
+            "cash_flow_operation_type_id": str(cash_flow_operation_type.id),
+            "project_id": str(project.id),
+            "expense_item_id": str(expense_item.id),
+        },
+    }
 
 
-def document_payload(document_type_id: str, document_type_version_id: str, author_id: str, number: str | None = None) -> dict:
+def document_payload(
+    document_type_id: str,
+    document_type_version_id: str,
+    author_id: str,
+    number: str | None = None,
+    accounting_data: dict[str, str] | None = None,
+) -> dict:
     unique = number or f"TEST-PAY-RBAC-{uuid4().hex[:12]}"
+    dictionary_data = accounting_data or {}
     return {
         "document_type_id": document_type_id,
         "document_type_version_id": document_type_version_id,
@@ -87,6 +134,13 @@ def document_payload(document_type_id: str, document_type_version_id: str, autho
             "amount": 1000,
             "currency": "KZT",
             "paymentPurpose": "RBAC regression test",
+            "organization_id": dictionary_data.get("organization_id"),
+            "counterparty_id": dictionary_data.get("counterparty_id"),
+            "contract_id": dictionary_data.get("contract_id"),
+            "currency_id": dictionary_data.get("currency_id"),
+            "cash_flow_operation_type_id": dictionary_data.get("cash_flow_operation_type_id"),
+            "project_id": dictionary_data.get("project_id"),
+            "expense_item_id": dictionary_data.get("expense_item_id"),
         },
     }
 
@@ -96,6 +150,7 @@ def create_test_document(client: TestClient, actor_id: str, author_id: str, seed
         str(seed_refs["document_type"].id),
         str(seed_refs["document_type_version"].id),
         author_id,
+        accounting_data=seed_refs["accounting_data"],
     )
     response = client.post("/api/v1/documents", json=payload, headers=auth_headers(actor_id))
     assert response.status_code == 200, response.text

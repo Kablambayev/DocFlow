@@ -10,6 +10,7 @@ export type FieldType =
   | "datetime"
   | "boolean"
   | "enum"
+  | "dictionary"
   | "reference"
   | "file"
   | "table";
