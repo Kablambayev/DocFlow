@@ -12,6 +12,7 @@ from app.modules.audit import models as audit_models  # noqa: F401
 from app.modules.document_types import models as document_type_models  # noqa: F401
 from app.modules.documents import models as document_models  # noqa: F401
 from app.modules.files import models as file_models  # noqa: F401
+from app.modules.integration import log_models as integration_log_models  # noqa: F401
 from app.modules.roles import models as role_models  # noqa: F401
 from app.modules.users import models as user_models  # noqa: F401
 from app.modules.workflow import models as workflow_models  # noqa: F401

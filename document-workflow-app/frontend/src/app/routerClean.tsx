@@ -11,6 +11,7 @@ import { UsersPage } from "../pages/admin/UsersPage";
 import { CreateDocumentV2Page } from "../pages/documents/CreateDocumentV2Page";
 import { DocumentCardV2Page } from "../pages/documents/DocumentCardV2Page";
 import { DocumentsV2Page } from "../pages/documents/DocumentsV2Page";
+import { IntegrationLogsPage } from "../pages/integration/IntegrationLogsPage";
 import { MyTasksV2Page } from "../pages/tasks/MyTasksV2Page";
 import { TreasuryPaymentRequestsPage } from "../pages/treasury/TreasuryPaymentRequestsPage";
 import { RequirePermission } from "../shared/auth/RequirePermission";
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
       { path: "documents/:id", element: <RequirePermission anyOf={["document.read", "integration_1c.payment_request.send"]}><DocumentCardV2Page /></RequirePermission> },
       { path: "tasks", element: <RequirePermission anyOf={["task.read", "document.approve"]}><MyTasksV2Page /></RequirePermission> },
       { path: "treasury/payment-requests", element: <RequirePermission permission="treasury.payment_request.read"><TreasuryPaymentRequestsPage /></RequirePermission> },
+      { path: "integration/logs", element: <RequirePermission permission="integration.log.read"><IntegrationLogsPage /></RequirePermission> },
       { path: "accounting", element: <RequirePermission permission="accounting.read"><AccountingDictionariesPage /></RequirePermission> },
       { path: "admin", element: <RequirePermission anyOf={["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"]}><AdminV2Page /></RequirePermission> },
       { path: "admin/document-types", element: <RequirePermission permission="document_type.read"><DocumentTypesAdminV2Page /></RequirePermission> },

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import timezone, datetime
+from time import perf_counter
 from uuid import UUID
+from uuid import uuid4
 
 from fastapi import status
 
@@ -15,6 +17,8 @@ from app.modules.documents.approval_dates import resolve_document_approved_at
 from app.modules.documents.models import DocumentApprovalStatus
 from app.modules.document_types.models import DocumentType
 from app.modules.integration.one_c.outbound_client import OneCOutboundClient
+from app.modules.integration.log_repository import IntegrationLogRepository
+from app.modules.integration.log_service import IntegrationLogService
 from app.modules.integration.one_c.payment_export_models import (
     PaymentRequest1CExport,
     PaymentRequest1CExportStatus,
@@ -37,6 +41,7 @@ class OneCOutboundService:
         self.client = client
         self.accounting_repository = AccountingRepository(self.repository.db)
         self.audit_service = AuditService(AuditRepository(self.repository.db))
+        self.log_service = IntegrationLogService(IntegrationLogRepository(self.repository.db))
         self.notification_service = NotificationService(NotificationRepository(self.repository.db))
         self.presenter = PaymentRequest1CExportPresenter()
 
@@ -63,6 +68,23 @@ class OneCOutboundService:
 
         payload = self._build_payload(document)
         export = self._upsert_export(export, document_id=document.id, current_user_id=current_user.id, payload=payload)
+        correlation_id = str(uuid4())
+        started_at = perf_counter()
+        request_url = "fake://1c/payment-requests" if not settings.one_c_enabled else f"{self.client.base_url.rstrip('/')}{self.client.payment_request_endpoint}"
+        request_headers = {"Authorization": "***MASKED***"} if self.client.username or self.client.password else {}
+        operation_log = self.log_service.create_outbound_http_log(
+            operation_type="1c_export_payment_request",
+            document_id=document.id,
+            entity_type="payment_request_1c_export",
+            entity_id=export.id,
+            initiated_by=current_user.id,
+            request_url=request_url,
+            request_method="POST",
+            request_headers=request_headers,
+            request_payload=payload,
+            correlation_id=correlation_id,
+            idempotency_key=str(document.id),
+        )
         self._log_audit(
             action="integration_1c_payment_request_send_started",
             document=document,
@@ -75,17 +97,35 @@ class OneCOutboundService:
             client_result = self.client.send_payment_request(payload)
         else:
             client_result = self.presenter.build_fake_response(document_id=document.id, payload=payload)
+            client_result["fake_mode"] = True
+            client_result["__meta__"] = {
+                "request_url": request_url,
+                "request_method": "POST",
+                "request_headers": request_headers,
+                "response_status_code": 200,
+                "response_headers": {},
+            }
 
-        export.response_payload = client_result
+        stored_response_payload = {key: value for key, value in client_result.items() if key != "__meta__"}
+        export.response_payload = stored_response_payload
         export.status = PaymentRequest1CExportStatus.SENT
         self.repository.save(export)
 
         result_status = client_result.get("status")
         payment_order = self.presenter.normalize_payment_order(client_result.get("payment_order"))
         error = client_result.get("error") or {}
+        meta = client_result.get("__meta__") or {}
+        duration_ms = int((perf_counter() - started_at) * 1000)
         if result_status == "created":
             export.status = PaymentRequest1CExportStatus.CREATED_IN_1C
             self._apply_payment_order(export, payment_order)
+            self.log_service.mark_success(
+                operation_log.id,
+                response_status_code=meta.get("response_status_code", 200),
+                response_headers=meta.get("response_headers") or {},
+                response_payload=stored_response_payload,
+                duration_ms=duration_ms,
+            )
             self._log_audit(
                 action="integration_1c_payment_request_created",
                 document=document,
@@ -98,6 +138,13 @@ class OneCOutboundService:
         elif result_status == "already_exists":
             export.status = PaymentRequest1CExportStatus.ALREADY_EXISTS_IN_1C
             self._apply_payment_order(export, payment_order)
+            self.log_service.mark_success(
+                operation_log.id,
+                response_status_code=meta.get("response_status_code", 200),
+                response_headers=meta.get("response_headers") or {},
+                response_payload=stored_response_payload,
+                duration_ms=duration_ms,
+            )
             self._log_audit(
                 action="integration_1c_payment_request_already_exists",
                 document=document,
@@ -116,6 +163,16 @@ class OneCOutboundService:
             export.one_c_payment_order_date = None
             export.one_c_payment_order_amount = None
             export.one_c_payment_order_currency_code = None
+            self.log_service.mark_failed(
+                operation_log.id,
+                response_status_code=meta.get("response_status_code"),
+                response_headers=meta.get("response_headers") or {},
+                response_payload=stored_response_payload,
+                error_code=error.get("code") or "ONE_C_EXPORT_FAILED",
+                error_message=error.get("message") or "1C export failed",
+                error_details=error.get("details") or {},
+                duration_ms=duration_ms,
+            )
             self._log_audit(
                 action="integration_1c_payment_request_failed",
                 document=document,

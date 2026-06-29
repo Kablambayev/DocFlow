@@ -638,3 +638,92 @@ Planned statuses:
 - `CreatedIn1C`
 - `AlreadyExistsIn1C`
 - `Failed`
+
+## 14. Stage 11 - Integration Operations Log
+
+Stage 11 adds a dedicated technical journal for 1C integration operations.
+
+### 14.1 Logged directions and operations
+
+Directions:
+
+- `Inbound`
+- `Outbound`
+
+Operation types:
+
+- `1c_import_organizations`
+- `1c_import_counterparties`
+- `1c_import_currencies`
+- `1c_import_expense_items`
+- `1c_import_counterparty_contracts`
+- `1c_export_payment_request`
+
+### 14.2 Stored fields
+
+Each log record may contain:
+
+- request URL and method;
+- masked request headers and request payload;
+- response status code, headers, and payload;
+- error code, message, and details;
+- duration in milliseconds;
+- initiator user id;
+- related `document_id` when operation is tied to a document;
+- `correlation_id`;
+- `idempotency_key`.
+
+### 14.3 Masking
+
+Sensitive values are masked recursively for dictionaries and arrays.
+
+Masked key patterns include:
+
+- `authorization`
+- `password`
+- `token`
+- `secret`
+- `api_key`
+- `apikey`
+- `access_token`
+- `refresh_token`
+- `cookie`
+- `set-cookie`
+
+This means:
+
+- `ONE_C_PASSWORD` is never stored in plain text;
+- Basic Auth headers are not stored in plain text;
+- cookies and tokens are not stored in plain text.
+
+### 14.4 API
+
+- `GET /api/v1/integration/logs`
+- `GET /api/v1/integration/logs/{log_id}`
+- `POST /api/v1/integration/logs/{log_id}/retry`
+
+Permissions:
+
+- list/detail: `integration.log.read`
+- retry outbound export: `integration_1c.payment_request.send`
+
+### 14.5 Retry policy
+
+Retry is supported only for:
+
+- `direction = Outbound`
+- `operation_type = 1c_export_payment_request`
+- `document_id is not null`
+
+Retry uses the existing outbound send flow with `force=true`.
+
+Inbound imports are not retried through the log API. Unsupported retry returns:
+
+```json
+{
+  "error": {
+    "code": "INTEGRATION_LOG_RETRY_NOT_SUPPORTED",
+    "message": "Retry is supported only for outbound PaymentRequest export logs"
+  }
+}
+```

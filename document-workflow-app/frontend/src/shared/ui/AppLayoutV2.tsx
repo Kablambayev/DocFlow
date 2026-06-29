@@ -13,6 +13,7 @@ const menuPermissionsByKey: Record<string, { permission?: string; anyOf?: string
   "/documents": { permission: "document.read" },
   "/tasks": { anyOf: ["task.read", "document.approve"] },
   "/treasury/payment-requests": { permission: "treasury.payment_request.read" },
+  "/integration/logs": { permission: "integration.log.read" },
   "/accounting": { permission: "accounting.read" },
   "/admin": { anyOf: ["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"] },
   "/admin/document-types": { permission: "document_type.read" },
@@ -46,7 +47,11 @@ export const AppLayoutV2 = ({ menuItems }: AppLayoutProps) => {
   const navigate = useNavigate();
   const { currentUser, currentUserId, permissions, isLoading, setCurrentUserId, refreshAuth, hasPermission, hasAnyPermission } = useAuth();
   const usersQuery = useQuery({ queryKey: ["users", "layout"], queryFn: getUsers, enabled: hasPermission("user.read"), retry: false });
-  const sourceMenuItems = [...menuItems, { key: "/admin/roles", label: "Роли и права" }];
+  const sourceMenuItems = [
+    ...menuItems,
+    { key: "/integration/logs", label: "Журнал обмена" },
+    { key: "/admin/roles", label: "Роли и права" },
+  ];
   const visibleMenuItems = sourceMenuItems
     .filter((item) => {
       if (!currentUserId || isLoading) return true;

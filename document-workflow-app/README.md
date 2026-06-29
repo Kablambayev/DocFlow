@@ -666,6 +666,72 @@ Detailed contracts are documented in:
 
 - `docs/integration-1c-contracts.md`
 
+## Stage 11 Integration Operations Log
+
+Stage 11 adds a technical operations log for 1C integration.
+
+Purpose:
+
+- record inbound imports from 1C;
+- record outbound `PaymentRequest -> 1C` sends;
+- keep masked request/response payloads for diagnostics;
+- expose list/detail API for support and accounting users;
+- allow manual retry only for outbound `PaymentRequest` export logs.
+
+Backend additions:
+
+- table `integration_operation_logs`;
+- endpoints:
+  - `GET /api/v1/integration/logs`
+  - `GET /api/v1/integration/logs/{log_id}`
+  - `POST /api/v1/integration/logs/{log_id}/retry`
+- permissions:
+  - `integration.log.read`
+  - `integration.log.manage` reserved for future admin actions
+
+Logged operation types:
+
+- `1c_import_organizations`
+- `1c_import_counterparties`
+- `1c_import_currencies`
+- `1c_import_expense_items`
+- `1c_import_counterparty_contracts`
+- `1c_export_payment_request`
+
+Statuses:
+
+- `Started`
+- `Success`
+- `PartialSuccess`
+- `Failed`
+- `Skipped`
+
+Masking rules:
+
+- sensitive keys are masked recursively in headers and payloads;
+- masked key patterns include `authorization`, `password`, `token`, `secret`, `api_key`, `apikey`, `access_token`, `refresh_token`, `cookie`, `set-cookie`;
+- 1C credentials and auth headers are never stored in plain text.
+
+Retry rules:
+
+- retry is supported only for `Outbound` logs with `operation_type = 1c_export_payment_request`;
+- retry calls the existing Stage 9.2 send flow with `force=true`;
+- inbound import logs cannot be retried and return `INTEGRATION_LOG_RETRY_NOT_SUPPORTED`.
+
+Frontend additions:
+
+- page `/integration/logs`;
+- menu item `Журнал обмена`;
+- filters for direction, operation type, status, date range, and search;
+- detail drawer with request, response, error, and technical data;
+- retry action in UI for supported outbound logs.
+
+Verification:
+
+- backend `python.exe -m pytest` includes `test_integration_operation_logs.py`;
+- frontend `npm.cmd run lint` and `npm.cmd run build` pass;
+- Vite large chunk warning remains expected and is not part of Stage 11 scope.
+
 ## Useful Checks
 
 Backend:

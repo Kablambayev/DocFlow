@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, TypeVar
+from time import perf_counter
+from typing import Any, Callable, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ValidationError
@@ -18,6 +19,8 @@ from app.modules.accounting.models import (
 )
 from app.modules.audit.repository import AuditRepository
 from app.modules.audit.service import AuditService
+from app.modules.integration.log_repository import IntegrationLogRepository
+from app.modules.integration.log_service import IntegrationLogService
 from app.modules.integration.one_c.schemas import (
     CounterpartyContractImportItem,
     CounterpartyImportItem,
@@ -38,9 +41,124 @@ class OneCInboundService:
     def __init__(self, db: Session):
         self.db = db
         self.audit_service = AuditService(AuditRepository(db))
+        self.log_service = IntegrationLogService(IntegrationLogRepository(db))
 
     def import_organizations(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
-        result = self._init_result(payload, "organizations")
+        return self._execute_import(
+            operation_type="1c_import_organizations",
+            request_url="/api/v1/integration/1c/organizations/import",
+            payload=payload,
+            user_id=user_id,
+            audit_action="integration_1c_organizations_imported",
+            entity="organizations",
+            processor=self._process_organizations,
+        )
+
+    def import_counterparties(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
+        return self._execute_import(
+            operation_type="1c_import_counterparties",
+            request_url="/api/v1/integration/1c/counterparties/import",
+            payload=payload,
+            user_id=user_id,
+            audit_action="integration_1c_counterparties_imported",
+            entity="counterparties",
+            processor=self._process_counterparties,
+        )
+
+    def import_currencies(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
+        return self._execute_import(
+            operation_type="1c_import_currencies",
+            request_url="/api/v1/integration/1c/currencies/import",
+            payload=payload,
+            user_id=user_id,
+            audit_action="integration_1c_currencies_imported",
+            entity="currencies",
+            processor=self._process_currencies,
+        )
+
+    def import_expense_items(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
+        return self._execute_import(
+            operation_type="1c_import_expense_items",
+            request_url="/api/v1/integration/1c/expense-items/import",
+            payload=payload,
+            user_id=user_id,
+            audit_action="integration_1c_expense_items_imported",
+            entity="expense_items",
+            processor=self._process_expense_items,
+        )
+
+    def import_counterparty_contracts(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
+        return self._execute_import(
+            operation_type="1c_import_counterparty_contracts",
+            request_url="/api/v1/integration/1c/counterparty-contracts/import",
+            payload=payload,
+            user_id=user_id,
+            audit_action="integration_1c_counterparty_contracts_imported",
+            entity="counterparty_contracts",
+            processor=self._process_counterparty_contracts,
+        )
+
+    def _execute_import(
+        self,
+        *,
+        operation_type: str,
+        request_url: str,
+        payload: ImportEnvelope,
+        user_id: UUID,
+        audit_action: str,
+        entity: str,
+        processor: Callable[[ImportEnvelope, ImportResult], None],
+    ) -> ImportResult:
+        started_at = perf_counter()
+        try:
+            result = self._init_result(payload, entity)
+            processor(payload, result)
+            self._finalize(payload, result, user_id, audit_action)
+            duration_ms = int((perf_counter() - started_at) * 1000)
+            self.log_service.create_inbound_import_log(
+                operation_type=operation_type,
+                request_url=request_url,
+                request_payload=payload.model_dump(mode="json"),
+                response_payload=result.model_dump(mode="json"),
+                initiated_by=user_id,
+                duration_ms=duration_ms,
+                status="PartialSuccess" if result.errors or result.skipped else "Success",
+            )
+            self.db.commit()
+            return result
+        except AppError as exc:
+            duration_ms = int((perf_counter() - started_at) * 1000)
+            self.log_service.create_inbound_import_log(
+                operation_type=operation_type,
+                request_url=request_url,
+                request_payload=payload.model_dump(mode="json"),
+                response_payload={},
+                initiated_by=user_id,
+                duration_ms=duration_ms,
+                status="Failed",
+                error_code=exc.code,
+                error_message=exc.message,
+                error_details=exc.details if isinstance(exc.details, dict) else {},
+            )
+            self.db.commit()
+            raise
+        except Exception as exc:
+            duration_ms = int((perf_counter() - started_at) * 1000)
+            self.log_service.create_inbound_import_log(
+                operation_type=operation_type,
+                request_url=request_url,
+                request_payload=payload.model_dump(mode="json"),
+                response_payload={},
+                initiated_by=user_id,
+                duration_ms=duration_ms,
+                status="Failed",
+                error_code="INTEGRATION_IMPORT_FAILED",
+                error_message=str(exc),
+            )
+            self.db.commit()
+            raise
+
+    def _process_organizations(self, payload: ImportEnvelope, result: ImportResult) -> None:
         now = datetime.now(timezone.utc)
         for index, raw_item in enumerate(payload.items):
             parsed = self._validate_item(index, raw_item, OrganizationImportItem, result)
@@ -54,17 +172,18 @@ class OneCInboundService:
                 )
             )
             if existing is None:
-                item = AccountingOrganization(
-                    source_system=payload.source_system,
-                    external_id=parsed.external_id,
-                    code=parsed.code,
-                    name=parsed.name,
-                    full_name=parsed.full_name,
-                    is_active=parsed.is_active,
-                    raw_data=parsed.raw_data,
-                    synced_at=now,
+                self.db.add(
+                    AccountingOrganization(
+                        source_system=payload.source_system,
+                        external_id=parsed.external_id,
+                        code=parsed.code,
+                        name=parsed.name,
+                        full_name=parsed.full_name,
+                        is_active=parsed.is_active,
+                        raw_data=parsed.raw_data,
+                        synced_at=now,
+                    )
                 )
-                self.db.add(item)
                 result.created += 1
             else:
                 existing.code = parsed.code
@@ -75,11 +194,7 @@ class OneCInboundService:
                 existing.synced_at = now
                 result.updated += 1
 
-        self._finalize(payload, result, user_id, "integration_1c_organizations_imported")
-        return result
-
-    def import_counterparties(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
-        result = self._init_result(payload, "counterparties")
+    def _process_counterparties(self, payload: ImportEnvelope, result: ImportResult) -> None:
         now = datetime.now(timezone.utc)
         for index, raw_item in enumerate(payload.items):
             parsed = self._validate_item(index, raw_item, CounterpartyImportItem, result)
@@ -93,18 +208,19 @@ class OneCInboundService:
                 )
             )
             if existing is None:
-                item = AccountingCounterparty(
-                    source_system=payload.source_system,
-                    external_id=parsed.external_id,
-                    code=parsed.code,
-                    name=parsed.name,
-                    full_name=parsed.full_name,
-                    bin_iin=parsed.bin_iin,
-                    is_active=parsed.is_active,
-                    raw_data=parsed.raw_data,
-                    synced_at=now,
+                self.db.add(
+                    AccountingCounterparty(
+                        source_system=payload.source_system,
+                        external_id=parsed.external_id,
+                        code=parsed.code,
+                        name=parsed.name,
+                        full_name=parsed.full_name,
+                        bin_iin=parsed.bin_iin,
+                        is_active=parsed.is_active,
+                        raw_data=parsed.raw_data,
+                        synced_at=now,
+                    )
                 )
-                self.db.add(item)
                 result.created += 1
             else:
                 existing.code = parsed.code
@@ -116,11 +232,7 @@ class OneCInboundService:
                 existing.synced_at = now
                 result.updated += 1
 
-        self._finalize(payload, result, user_id, "integration_1c_counterparties_imported")
-        return result
-
-    def import_currencies(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
-        result = self._init_result(payload, "currencies")
+    def _process_currencies(self, payload: ImportEnvelope, result: ImportResult) -> None:
         now = datetime.now(timezone.utc)
         for index, raw_item in enumerate(payload.items):
             parsed = self._validate_item(index, raw_item, CurrencyImportItem, result)
@@ -133,13 +245,10 @@ class OneCInboundService:
                     AccountingCurrency.external_id == parsed.external_id,
                 )
             )
-
             code_conflict = self.db.scalar(
                 select(AccountingCurrency).where(func.lower(AccountingCurrency.code) == parsed.code.lower())
             )
-            if code_conflict is not None and (
-                existing is None or code_conflict.id != existing.id
-            ):
+            if code_conflict is not None and (existing is None or code_conflict.id != existing.id):
                 self._append_error(
                     result,
                     index=index,
@@ -151,18 +260,19 @@ class OneCInboundService:
                 continue
 
             if existing is None:
-                item = AccountingCurrency(
-                    source_system=payload.source_system,
-                    external_id=parsed.external_id,
-                    code=parsed.code,
-                    name=parsed.name,
-                    full_name=parsed.full_name,
-                    numeric_code=parsed.numeric_code,
-                    is_active=parsed.is_active,
-                    raw_data=parsed.raw_data,
-                    synced_at=now,
+                self.db.add(
+                    AccountingCurrency(
+                        source_system=payload.source_system,
+                        external_id=parsed.external_id,
+                        code=parsed.code,
+                        name=parsed.name,
+                        full_name=parsed.full_name,
+                        numeric_code=parsed.numeric_code,
+                        is_active=parsed.is_active,
+                        raw_data=parsed.raw_data,
+                        synced_at=now,
+                    )
                 )
-                self.db.add(item)
                 result.created += 1
             else:
                 existing.code = parsed.code
@@ -174,11 +284,7 @@ class OneCInboundService:
                 existing.synced_at = now
                 result.updated += 1
 
-        self._finalize(payload, result, user_id, "integration_1c_currencies_imported")
-        return result
-
-    def import_expense_items(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
-        result = self._init_result(payload, "expense_items")
+    def _process_expense_items(self, payload: ImportEnvelope, result: ImportResult) -> None:
         now = datetime.now(timezone.utc)
         for index, raw_item in enumerate(payload.items):
             parsed = self._validate_item(index, raw_item, ExpenseItemImportItem, result)
@@ -192,17 +298,18 @@ class OneCInboundService:
                 )
             )
             if existing is None:
-                item = AccountingExpenseItem(
-                    source_system=payload.source_system,
-                    external_id=parsed.external_id,
-                    code=parsed.code,
-                    name=parsed.name,
-                    full_name=parsed.full_name,
-                    is_active=parsed.is_active,
-                    raw_data=parsed.raw_data,
-                    synced_at=now,
+                self.db.add(
+                    AccountingExpenseItem(
+                        source_system=payload.source_system,
+                        external_id=parsed.external_id,
+                        code=parsed.code,
+                        name=parsed.name,
+                        full_name=parsed.full_name,
+                        is_active=parsed.is_active,
+                        raw_data=parsed.raw_data,
+                        synced_at=now,
+                    )
                 )
-                self.db.add(item)
                 result.created += 1
             else:
                 existing.code = parsed.code
@@ -213,11 +320,7 @@ class OneCInboundService:
                 existing.synced_at = now
                 result.updated += 1
 
-        self._finalize(payload, result, user_id, "integration_1c_expense_items_imported")
-        return result
-
-    def import_counterparty_contracts(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
-        result = self._init_result(payload, "counterparty_contracts")
+    def _process_counterparty_contracts(self, payload: ImportEnvelope, result: ImportResult) -> None:
         now = datetime.now(timezone.utc)
         for index, raw_item in enumerate(payload.items):
             parsed = self._validate_item(index, raw_item, CounterpartyContractImportItem, result)
@@ -284,21 +387,22 @@ class OneCInboundService:
                 )
             )
             if existing is None:
-                item = AccountingCounterpartyContract(
-                    source_system=payload.source_system,
-                    external_id=parsed.external_id,
-                    organization_id=organization.id,
-                    counterparty_id=counterparty.id,
-                    currency_id=currency.id if currency is not None else None,
-                    code=parsed.code,
-                    name=parsed.name,
-                    number=parsed.number,
-                    contract_date=parsed.contract_date,
-                    is_active=parsed.is_active,
-                    raw_data=parsed.raw_data,
-                    synced_at=now,
+                self.db.add(
+                    AccountingCounterpartyContract(
+                        source_system=payload.source_system,
+                        external_id=parsed.external_id,
+                        organization_id=organization.id,
+                        counterparty_id=counterparty.id,
+                        currency_id=currency.id if currency is not None else None,
+                        code=parsed.code,
+                        name=parsed.name,
+                        number=parsed.number,
+                        contract_date=parsed.contract_date,
+                        is_active=parsed.is_active,
+                        raw_data=parsed.raw_data,
+                        synced_at=now,
+                    )
                 )
-                self.db.add(item)
                 result.created += 1
             else:
                 existing.organization_id = organization.id
@@ -312,9 +416,6 @@ class OneCInboundService:
                 existing.raw_data = parsed.raw_data
                 existing.synced_at = now
                 result.updated += 1
-
-        self._finalize(payload, result, user_id, "integration_1c_counterparty_contracts_imported")
-        return result
 
     def _init_result(self, payload: ImportEnvelope, entity: str) -> ImportResult:
         self._validate_batch_size(payload.items)
@@ -389,4 +490,3 @@ class OneCInboundService:
                 "skipped": result.skipped,
             },
         )
-        self.db.commit()

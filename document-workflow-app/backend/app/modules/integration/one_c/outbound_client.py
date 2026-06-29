@@ -24,8 +24,10 @@ class OneCOutboundClient:
     def send_payment_request(self, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url.rstrip('/')}{self.payment_request_endpoint}"
         auth = None
+        request_headers: dict[str, Any] = {}
         if self.username or self.password:
             auth = (self.username, self.password)
+            request_headers["Authorization"] = "***MASKED***"
         if not self.base_url.strip():
             return {
                 "status": "error",
@@ -34,6 +36,13 @@ class OneCOutboundClient:
                     "message": "Cannot connect to 1C service",
                 },
                 "one_c_enabled": self.enabled,
+                "__meta__": {
+                    "request_url": url,
+                    "request_method": "POST",
+                    "request_headers": request_headers,
+                    "response_status_code": None,
+                    "response_headers": {},
+                },
             }
         try:
             response = httpx.post(url, json=payload, timeout=self.timeout_seconds, auth=auth)
@@ -48,6 +57,13 @@ class OneCOutboundClient:
                     "details": {"status_code": exc.response.status_code},
                 },
                 "one_c_enabled": self.enabled,
+                "__meta__": {
+                    "request_url": url,
+                    "request_method": "POST",
+                    "request_headers": request_headers,
+                    "response_status_code": exc.response.status_code,
+                    "response_headers": dict(exc.response.headers),
+                },
             }
         except httpx.HTTPError:
             logger.exception("Cannot connect to 1C service")
@@ -58,6 +74,13 @@ class OneCOutboundClient:
                     "message": "Cannot connect to 1C service",
                 },
                 "one_c_enabled": self.enabled,
+                "__meta__": {
+                    "request_url": url,
+                    "request_method": "POST",
+                    "request_headers": request_headers,
+                    "response_status_code": None,
+                    "response_headers": {},
+                },
             }
         try:
             body = response.json()
@@ -71,6 +94,20 @@ class OneCOutboundClient:
                     "details": {"status_code": response.status_code},
                 },
                 "one_c_enabled": self.enabled,
+                "__meta__": {
+                    "request_url": url,
+                    "request_method": "POST",
+                    "request_headers": request_headers,
+                    "response_status_code": response.status_code,
+                    "response_headers": dict(response.headers),
+                },
             }
         body["one_c_enabled"] = self.enabled
+        body["__meta__"] = {
+            "request_url": url,
+            "request_method": "POST",
+            "request_headers": request_headers,
+            "response_status_code": response.status_code,
+            "response_headers": dict(response.headers),
+        }
         return body

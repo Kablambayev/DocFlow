@@ -539,6 +539,61 @@ Known TODO:
 
 - the existing Vite large chunk warning is allowed and was not addressed in Stage 10.1.
 
+## Stage 11 Integration Operations Log Scenario
+
+### Backend checks
+
+Run:
+
+```bash
+cd backend
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+python.exe -B -c "import app.main"
+python.exe -m pytest
+```
+
+Verify:
+
+1. outbound `PaymentRequest` send creates `Outbound` integration log;
+2. fake mode log contains `fake_mode = true` and `one_c_enabled = false`;
+3. inbound imports create `Inbound` logs;
+4. partial import creates `PartialSuccess` log;
+5. request headers and payloads are masked recursively for sensitive keys;
+6. retry works only for outbound `1c_export_payment_request`.
+
+### Frontend checks
+
+Run:
+
+```bash
+cd frontend
+npm.cmd run lint
+npm.cmd run build
+npm.cmd run dev -- --host 127.0.0.1 --port 5173
+```
+
+Verify:
+
+1. `integration.log.read` users can open `/integration/logs`;
+2. filters by direction, operation, status, date range, and search work;
+3. detail drawer shows request, response, error, and technical sections;
+4. retry button is visible only for outbound `PaymentRequest` export logs and only for users with `integration_1c.payment_request.send`.
+
+### Manual smoke
+
+1. Login as `accounting_admin`.
+2. Open `Казначейство`.
+3. Send approved `PaymentRequest` to fake 1C.
+4. Open `Журнал обмена`.
+5. Find outbound log and open detail drawer.
+6. Verify request payload, response payload, and masked headers.
+7. Open the linked document from the log.
+8. Run retry from the journal and verify a new outbound log appears.
+9. Import organizations from Swagger.
+10. Verify inbound log appears.
+11. Trigger partial success import and verify `PartialSuccess` status.
+
 ### Timeline API
 
 ```text

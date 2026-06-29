@@ -12,6 +12,7 @@ from app.modules.document_types.version_router import router as document_type_ve
 from app.modules.documents.router import router as documents_router
 from app.modules.files.router import router as files_router
 from app.modules.integration.one_c.inbound_router import router as integration_one_c_router
+from app.modules.integration.log_router import router as integration_log_router
 from app.modules.integration.one_c.outbound_router import router as integration_one_c_outbound_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.roles.router import router as roles_router
@@ -55,4 +56,5 @@ fastapi_app.include_router(roles_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(accounting_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(integration_one_c_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(integration_one_c_outbound_router, prefix=settings.api_v1_prefix)
+fastapi_app.include_router(integration_log_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(treasury_router, prefix=settings.api_v1_prefix)

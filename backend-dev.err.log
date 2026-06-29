@@ -1,0 +1,48 @@
+INFO:     Will watch for changes in these directories: ['C:\\Projects\\DocFlow\\document-workflow-app\\backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [33912] using WatchFiles
+INFO:     Started server process [13352]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app\modules\integration\log_models.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [13352]
+WARNING:  WatchFiles detected changes in 'app\main.py', 'app\modules\integration\log_schemas.py', 'alembic\versions\20260629_0008_integration_operation_logs.py', 'app\modules\integration\one_c\outbound_service.py', 'tests\test_integration_operation_logs.py', 'scripts\seed_dev.py', 'app\modules\integration\log_service.py', 'app\modules\integration\one_c\outbound_client.py', 'alembic\env.py', 'app\modules\integration\log_repository.py', 'app\modules\integration\one_c\inbound_service.py', 'app\modules\integration\log_router.py'. Reloading...
+Exception ignored while calling deallocator <function BaseEventLoop.__del__ at 0x0000016DD902C250>:
+Traceback (most recent call last):
+  File "C:\Users\kablambaev_t\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 760, in __del__
+    self.close()
+  File "C:\Users\kablambaev_t\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\selector_events.py", line 104, in close
+    self._close_self_pipe()
+  File "C:\Users\kablambaev_t\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\selector_events.py", line 111, in _close_self_pipe
+    self._remove_reader(self._ssock.fileno())
+AttributeError: '_WindowsSelectorEventLoop' object has no attribute '_ssock'
+C:\Users\kablambaev_t\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\_subprocess.py:84: RuntimeWarning: coroutine 'Server.serve' was never awaited
+  pass
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+INFO:     Started server process [20444]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'tests\conftest.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [20444]
+WARNING:  WatchFiles detected changes in 'tests\test_integration_operation_logs.py'. Reloading...
+Exception ignored while calling deallocator <function BaseEventLoop.__del__ at 0x0000017B7853C250>:
+Traceback (most recent call last):
+  File "C:\Users\kablambaev_t\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 760, in __del__
+    self.close()
+  File "C:\Users\kablambaev_t\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\selector_events.py", line 104, in close
+    self._close_self_pipe()
+  File "C:\Users\kablambaev_t\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\selector_events.py", line 111, in _close_self_pipe
+    self._remove_reader(self._ssock.fileno())
+AttributeError: '_WindowsSelectorEventLoop' object has no attribute '_ssock'
+C:\Users\kablambaev_t\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\uvicorn\_subprocess.py:84: RuntimeWarning: coroutine 'Server.serve' was never awaited
+  pass
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+INFO:     Started server process [1308]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.

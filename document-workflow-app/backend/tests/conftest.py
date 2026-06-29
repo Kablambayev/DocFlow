@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -27,6 +30,8 @@ from scripts.seed_dev import main as seed_dev_main
 
 @pytest.fixture(scope="session", autouse=True)
 def seed_dev_data() -> None:
+    alembic_cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    command.upgrade(alembic_cfg, "head")
     seed_dev_main()
 
 
