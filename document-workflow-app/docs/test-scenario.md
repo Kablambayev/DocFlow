@@ -412,6 +412,33 @@ Verify send succeeds for:
 9. Open notifications and verify success or failure notification is present.
 10. Open `Draft` or `OnApproval` document and verify send is unavailable.
 
+## Stage 9.2.1 1C Export Visibility Scenario
+
+This stage validates that `accounting_admin` can work with approved foreign payment requests without receiving unrestricted access to all foreign documents.
+
+### Backend/API checks
+
+1. Create a `PaymentRequest` as author.
+2. Submit and approve it.
+3. Log in as `accounting_admin`.
+4. Call `GET /api/v1/documents` and verify the approved foreign `PaymentRequest` is present.
+5. Call `GET /api/v1/documents/{approved_payment_request_id}` and verify `200 OK`.
+6. Call `GET /api/v1/integration/1c/payment-requests/{approved_payment_request_id}/export` and verify access is allowed.
+7. Verify foreign `Draft`, `OnApproval`, and `Rejected` `PaymentRequest` still return `403` by direct link and do not appear in the list.
+8. Verify foreign approved non-`PaymentRequest` documents still return `403` and do not appear in the list.
+
+### UI checks
+
+1. Log in as `author` and create a `PaymentRequest`.
+2. Fill accounting dictionaries and submit the document.
+3. Log in as `approver` and approve the task.
+4. Log in as `accounting_admin`.
+5. Open the documents list and verify the approved foreign `PaymentRequest` is visible.
+6. Open the card and verify the `1С` tab is visible.
+7. Send to fake 1C and refresh the page.
+8. Verify payment order data, history event, and author notification.
+9. Verify foreign draft/on-approval/rejected requests are not visible in the list.
+
 ### Timeline API
 
 ```text

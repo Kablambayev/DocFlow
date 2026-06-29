@@ -364,6 +364,42 @@ UI smoke:
 3. Send the document to 1C or fake 1C.
 4. Refresh the page and verify payment order data, history event, and notifications.
 
+## Stage 9.2.1 1C Export Visibility
+
+Stage 9.2.1 hardens document visibility for users responsible for 1C export.
+
+Why this is needed:
+
+- `accounting_admin` has `integration_1c.payment_request.send` and must be able to find approved payment requests ready for export;
+- the same user must not get blanket access to all foreign documents.
+
+Visibility rules are now:
+
+- `admin.access` -> all documents;
+- document author -> own documents;
+- approver -> documents where the user has an approval task;
+- `integration_1c.payment_request.send` -> only foreign `Approved` documents with `document_type.code = PaymentRequest`.
+
+`accounting_admin` still does not see:
+
+- foreign `Draft` `PaymentRequest`;
+- foreign `OnApproval` `PaymentRequest`;
+- foreign `Rejected` or `Withdrawn` `PaymentRequest`;
+- foreign approved documents of other types.
+
+API verification:
+
+- `GET /api/v1/documents` includes foreign approved `PaymentRequest` for accounting_admin;
+- `GET /api/v1/documents/{id}` returns `200` for such a document and `403` for excluded cases;
+- `GET /api/v1/integration/1c/payment-requests/{id}/export` respects the same visibility model.
+
+UI verification:
+
+1. Log in as `accounting_admin` in dev mode.
+2. Open the documents list and find a foreign approved `PaymentRequest`.
+3. Open the card and verify the `1С` tab is available.
+4. Verify foreign draft/on-approval/rejected documents are still not visible.
+
 1. Submit a document as `author@example.com`.
 2. Switch to `approver@example.com`.
 3. Verify the notification badge and dropdown show a new approval task.

@@ -12,6 +12,7 @@ from app.modules.accounting.repository import AccountingRepository
 from app.modules.audit.repository import AuditRepository
 from app.modules.audit.service import AuditService
 from app.modules.documents.models import DocumentApprovalStatus
+from app.modules.document_types.models import DocumentType
 from app.modules.integration.one_c.outbound_client import OneCOutboundClient
 from app.modules.integration.one_c.payment_export_models import (
     PaymentRequest1CExport,
@@ -307,11 +308,14 @@ class OneCOutboundService:
         return "admin.access" in self._permissions(user_id)
 
     def _ensure_can_access_document(self, document, user_id: UUID) -> None:
+        permissions = self._permissions(user_id)
         if self._is_admin(user_id) or document.author_id == user_id:
             return
         if self.repository.db.scalar(
             select(ApprovalTask.id).where(ApprovalTask.document_id == document.id, ApprovalTask.approver_id == user_id)
         ) is not None:
+            return
+        if self._has_payment_request_export_visibility(document, permissions):
             return
         raise AppError("Document access denied", code="DOCUMENT_ACCESS_DENIED", status_code=403)
 
@@ -324,6 +328,14 @@ class OneCOutboundService:
         if "admin.access" not in permissions and "document.read" not in permissions and "accounting.read" not in permissions:
             raise AppError("Permission required", code="PERMISSION_DENIED", status_code=403, details={"permissions": ["document.read", "accounting.read"]})
         self._ensure_can_access_document(document, user_id)
+
+    def _has_payment_request_export_visibility(self, document, permissions: set[str]) -> bool:
+        if "integration_1c.payment_request.send" not in permissions:
+            return False
+        if document.approval_status != DocumentApprovalStatus.APPROVED:
+            return False
+        document_type = self.repository.get_document_type(document.document_type_id)
+        return document_type is not None and document_type.code == "PaymentRequest"
 
     def _log_audit(self, *, action: str, document, user_id: UUID, export_status: str, one_c_enabled: bool, payment_order: dict | None = None) -> None:
         payment_order = payment_order or {}

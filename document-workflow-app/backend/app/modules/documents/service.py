@@ -10,6 +10,7 @@ from app.core.security import get_user_permission_codes
 from app.modules.accounting.repository import AccountingRepository
 from app.modules.audit.repository import AuditRepository
 from app.modules.audit.service import AuditService
+from app.modules.document_types.models import DocumentType
 from app.modules.document_types.models import VersionStatus
 from app.modules.documents.models import DocumentApprovalStatus
 from app.modules.documents.repository import DocumentRepository
@@ -28,9 +29,15 @@ class DocumentService:
         self.notification_service = NotificationService(NotificationRepository(self.repository.db))
 
     def list_documents(self, user_id: UUID):
-        if self._is_admin(user_id):
+        permissions = self._permissions(user_id)
+        if self._is_admin(user_id, permissions):
             return self.repository.list()
-        return self.repository.list_visible_for_user(user_id)
+        visible_documents: list = []
+        document_type_cache: dict[UUID, DocumentType | None] = {}
+        for document in self.repository.list():
+            if self._can_access_document(document, user_id, permissions=permissions, document_type_cache=document_type_cache):
+                visible_documents.append(document)
+        return visible_documents
 
     def get_document(self, document_id: UUID, user_id: UUID | None = None):
         doc = self.repository.get(document_id)
@@ -46,15 +53,53 @@ class DocumentService:
             raise AppError("Document not found", code="DOCUMENT_NOT_FOUND", status_code=status.HTTP_404_NOT_FOUND)
         return doc
 
-    def _is_admin(self, user_id: UUID) -> bool:
-        return "admin.access" in get_user_permission_codes(self.repository.db, user_id)
+    def _permissions(self, user_id: UUID) -> set[str]:
+        return get_user_permission_codes(self.repository.db, user_id)
 
-    def _can_access_document(self, doc, user_id: UUID) -> bool:
+    def _is_admin(self, user_id: UUID, permissions: set[str] | None = None) -> bool:
+        resolved_permissions = permissions if permissions is not None else self._permissions(user_id)
+        return "admin.access" in resolved_permissions
+
+    def _can_access_document(
+        self,
+        doc,
+        user_id: UUID,
+        *,
+        permissions: set[str] | None = None,
+        document_type_cache: dict[UUID, DocumentType | None] | None = None,
+    ) -> bool:
+        resolved_permissions = permissions if permissions is not None else self._permissions(user_id)
         return (
-            self._is_admin(user_id)
+            self._is_admin(user_id, resolved_permissions)
             or doc.author_id == user_id
             or self.repository.user_has_task_for_document(doc.id, user_id)
+            or self._has_payment_request_export_visibility(doc, resolved_permissions, document_type_cache=document_type_cache)
         )
+
+    def _has_payment_request_export_visibility(
+        self,
+        doc,
+        permissions: set[str],
+        *,
+        document_type_cache: dict[UUID, DocumentType | None] | None = None,
+    ) -> bool:
+        if "integration_1c.payment_request.send" not in permissions:
+            return False
+        if doc.approval_status != DocumentApprovalStatus.APPROVED:
+            return False
+        document_type = self._get_document_type_cached(doc.document_type_id, document_type_cache)
+        return document_type is not None and document_type.code == "PaymentRequest"
+
+    def _get_document_type_cached(
+        self,
+        document_type_id: UUID,
+        document_type_cache: dict[UUID, DocumentType | None] | None,
+    ) -> DocumentType | None:
+        if document_type_cache is None:
+            return self.repository.get_document_type(document_type_id)
+        if document_type_id not in document_type_cache:
+            document_type_cache[document_type_id] = self.repository.get_document_type(document_type_id)
+        return document_type_cache[document_type_id]
 
     def _ensure_author(self, doc, user_id: UUID) -> None:
         if not self._is_admin(user_id) and doc.author_id != user_id:

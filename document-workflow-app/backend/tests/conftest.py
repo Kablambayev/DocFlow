@@ -55,6 +55,7 @@ def users(db) -> dict[str, User]:
         "admin": "admin@example.com",
         "author": "author@example.com",
         "approver": "approver@example.com",
+        "accounting_admin": "accounting_admin@example.com",
     }.items():
         user = db.scalar(select(User).where(User.email == email))
         assert user is not None, f"Missing seed user {email}"

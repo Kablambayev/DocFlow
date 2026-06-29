@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.security import require_permission
+from app.core.security import require_any_permission, require_permission
 from app.db.session import get_db
 from app.modules.documents.repository import DocumentRepository
 from app.modules.documents.schemas import DocumentCreate, DocumentRead, DocumentUpdate
@@ -21,7 +21,7 @@ def get_service(db: Session = Depends(get_db)) -> DocumentService:
 
 @router.get("", response_model=list[DocumentRead])
 def list_documents(
-	current_user: User = Depends(require_permission("document.read")),
+	current_user: User = Depends(require_any_permission("document.read", "integration_1c.payment_request.send")),
 	service: DocumentService = Depends(get_service),
 ) -> list[DocumentRead]:
 	return service.list_documents(current_user.id)
@@ -39,7 +39,7 @@ def create_document(
 @router.get("/{id}", response_model=DocumentRead)
 def get_document(
 	id: UUID,
-	current_user: User = Depends(require_permission("document.read")),
+	current_user: User = Depends(require_any_permission("document.read", "integration_1c.payment_request.send")),
 	service: DocumentService = Depends(get_service),
 ) -> DocumentRead:
 	return service.get_document(id, current_user.id)

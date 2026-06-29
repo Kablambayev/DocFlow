@@ -456,6 +456,56 @@ Swagger:
 1. `POST /api/v1/integration/1c/payment-requests/{document_id}/send`
 2. `GET /api/v1/integration/1c/payment-requests/{document_id}/export`
 
+## 12. Stage 9.2.1 - 1C Export Visibility
+
+### 12.1 Why accounting_admin needs extra visibility
+
+`accounting_admin` is responsible for sending approved payment requests to 1C. Without additional visibility, the user can have the send permission but still be unable to find foreign approved requests in the document list or open them by direct link.
+
+### 12.2 What accounting_admin can see
+
+If the user has `integration_1c.payment_request.send`, the user can see:
+
+- foreign documents with `document_type.code = PaymentRequest`;
+- only when `document.approval_status = Approved`.
+
+### 12.3 What accounting_admin still cannot see
+
+- foreign `Draft` `PaymentRequest`;
+- foreign `OnApproval` `PaymentRequest`;
+- foreign `Rejected` or `Withdrawn` `PaymentRequest`;
+- foreign approved documents of any other type.
+
+### 12.4 Required permissions
+
+- send to 1C: `integration_1c.payment_request.send`
+- read export info: document visibility plus `document.read` or `accounting.read`
+
+### 12.5 API checks
+
+Use:
+
+- `GET /api/v1/documents`
+- `GET /api/v1/documents/{document_id}`
+- `POST /api/v1/integration/1c/payment-requests/{document_id}/send`
+- `GET /api/v1/integration/1c/payment-requests/{document_id}/export`
+
+Expected behavior:
+
+- accounting_admin receives `200` for foreign approved `PaymentRequest`;
+- accounting_admin receives `403` for excluded foreign documents;
+- ordinary `document_user` still does not see foreign approved `PaymentRequest` without the export permission;
+- admin still sees all documents.
+
+### 12.6 UI checks
+
+1. Approve a `PaymentRequest` as usual.
+2. Log in as `accounting_admin`.
+3. Verify the document appears in the list.
+4. Open the document card.
+5. Verify the `1С` tab is available and send works.
+6. Verify unrelated foreign drafts and other document types do not appear.
+
 Error:
 
 ```json
