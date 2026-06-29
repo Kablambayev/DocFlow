@@ -3,6 +3,8 @@ import { apiClient } from "../../shared/api/axios";
 import type {
   AccountingDictionaryItem,
   AccountingQueryParams,
+  CashFlowItemDictionaryItem,
+  CashFlowItemPayload,
   CashFlowOperationTypePayload,
   CounterpartyContractItem,
   CounterpartyContractsQueryParams,
@@ -31,6 +33,21 @@ export const getCurrencies = async (params?: AccountingQueryParams) => {
 
 export const getExpenseItems = async (params?: AccountingQueryParams) => {
   const { data } = await apiClient.get<AccountingDictionaryItem[]>("/accounting/expense-items", { params });
+  return data;
+};
+
+export const getCashFlowItems = async (params?: AccountingQueryParams) => {
+  const { data } = await apiClient.get<CashFlowItemDictionaryItem[]>("/accounting/cash-flow-items", { params });
+  return data;
+};
+
+export const createCashFlowItem = async (payload: CashFlowItemPayload) => {
+  const { data } = await apiClient.post<CashFlowItemDictionaryItem>("/accounting/cash-flow-items", payload);
+  return data;
+};
+
+export const updateCashFlowItem = async (id: string, payload: Partial<CashFlowItemPayload>) => {
+  const { data } = await apiClient.put<CashFlowItemDictionaryItem>(`/accounting/cash-flow-items/${id}`, payload);
   return data;
 };
 

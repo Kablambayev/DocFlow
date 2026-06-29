@@ -775,3 +775,52 @@ cd frontend
 npm.cmd run build
 npm.cmd run dev -- --host 127.0.0.1 --port 5173
 ```
+
+## Stage 13 - CashFlowAllocation and BDDS mapping foundation
+
+Stage 13 adds the foundation for future BDDs reporting without building the report itself.
+
+Implemented in this stage:
+- dynamic document type `CashFlowAllocation` (`Разноска БДДС`);
+- new accounting dictionary `cash_flow_items` (`Статьи ДДС`);
+- editable mapping rules `1C JSON -> CashFlowAllocation`;
+- test endpoint for mapping on sample JSON;
+- default seed rules for six 1C document types.
+
+Normalized source document codes used by DocFlow:
+- `PaymentOrderIncoming` / `Inflow`
+- `CashReceiptOrder` / `Inflow`
+- `MoneyReceiptOrder` / `Inflow`
+- `PaymentOrderOutgoing` / `Outflow`
+- `CashExpenseOrder` / `Outflow`
+- `MoneyExpenseOrder` / `Outflow`
+
+`CashFlowAllocation` stores both source type fields:
+- `source_document_type` - normalized DocFlow code
+- `source_document_type_1c` - technical 1C document name
+- `cash_flow_direction` - `Inflow` or `Outflow`
+
+Supported mapping types:
+- `path`
+- `constant`
+- `default`
+- `dictionary_lookup`
+
+`dictionary_lookup` supports:
+- `organization`
+- `counterparty`
+- `contract`
+- `currency`
+- `project`
+- `cash_flow_operation_type`
+- `cash_flow_item`
+
+Completed allocation requires:
+- `organization_id`
+- `cash_flow_direction`
+- `cash_flow_item_id`
+- `currency_id`
+- `amount`
+- `source_document_date`
+
+If any of these are missing, the mapping engine sets `allocation_status = NeedsEnrichment`.

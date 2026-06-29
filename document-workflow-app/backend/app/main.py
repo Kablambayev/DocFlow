@@ -10,6 +10,7 @@ from app.modules.comments.router import router as comments_router
 from app.modules.document_types.router import router as document_type_router
 from app.modules.document_types.version_router import router as document_type_version_router
 from app.modules.documents.router import router as documents_router
+from app.modules.cash_flow.mapping_router import router as cash_flow_mapping_router
 from app.modules.files.router import router as files_router
 from app.modules.integration.one_c.inbound_router import router as integration_one_c_router
 from app.modules.integration.log_router import router as integration_log_router
@@ -49,6 +50,7 @@ fastapi_app.include_router(users_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(document_type_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(document_type_version_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(documents_router, prefix=settings.api_v1_prefix)
+fastapi_app.include_router(cash_flow_mapping_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(files_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(comments_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(notifications_router, prefix=settings.api_v1_prefix)

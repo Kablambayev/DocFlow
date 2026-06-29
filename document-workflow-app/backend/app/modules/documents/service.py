@@ -216,6 +216,7 @@ class DocumentService:
             "counterparty_contracts": self.accounting_repository.get_active_contract,
             "currencies": self.accounting_repository.get_active_currency,
             "expense_items": self.accounting_repository.get_active_expense_item,
+            "cash_flow_items": self.accounting_repository.get_active_cash_flow_item,
             "cash_flow_operation_types": self.accounting_repository.get_active_cash_flow_operation_type,
             "projects": self.accounting_repository.get_active_project,
         }

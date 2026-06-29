@@ -1,12 +1,14 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+﻿import { useMutation, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Card, Form, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag, Typography, message } from "antd";
 import { useMemo, useState } from "react";
 
 import {
+  createCashFlowItem,
   createCashFlowOperationType,
   createProject,
   deleteCashFlowOperationType,
   deleteProject,
+  getCashFlowItems,
   getCashFlowOperationTypes,
   getCounterparties,
   getCounterpartyContracts,
@@ -14,10 +16,11 @@ import {
   getExpenseItems,
   getOrganizations,
   getProjects,
+  updateCashFlowItem,
   updateCashFlowOperationType,
   updateProject,
 } from "../../entities/accounting";
-import type { AccountingDictionaryItem, CounterpartyContractItem } from "../../entities/accounting";
+import type { AccountingDictionaryItem, CashFlowItemDictionaryItem, CounterpartyContractItem } from "../../entities/accounting";
 import { Can } from "../../shared/auth/Can";
 
 const apiError = (error: unknown, fallback: string) =>
@@ -61,16 +64,20 @@ const DictionaryTable = ({
 export const AccountingDictionariesPage = () => {
   const [operationModalOpen, setOperationModalOpen] = useState(false);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
+  const [cashFlowItemModalOpen, setCashFlowItemModalOpen] = useState(false);
   const [editingOperation, setEditingOperation] = useState<AccountingDictionaryItem | null>(null);
   const [editingProject, setEditingProject] = useState<AccountingDictionaryItem | null>(null);
+  const [editingCashFlowItem, setEditingCashFlowItem] = useState<CashFlowItemDictionaryItem | null>(null);
   const [operationForm] = Form.useForm();
   const [projectForm] = Form.useForm();
+  const [cashFlowItemForm] = Form.useForm();
   const [contractFilterForm] = Form.useForm();
 
   const organizationsQuery = useQuery({ queryKey: ["accounting", "organizations"], queryFn: () => getOrganizations({ is_active: true, limit: 100 }) });
   const counterpartiesQuery = useQuery({ queryKey: ["accounting", "counterparties"], queryFn: () => getCounterparties({ is_active: true, limit: 100 }) });
   const currenciesQuery = useQuery({ queryKey: ["accounting", "currencies"], queryFn: () => getCurrencies({ is_active: true, limit: 100 }) });
   const expenseItemsQuery = useQuery({ queryKey: ["accounting", "expense-items"], queryFn: () => getExpenseItems({ is_active: true, limit: 100 }) });
+  const cashFlowItemsQuery = useQuery({ queryKey: ["accounting", "cash-flow-items"], queryFn: () => getCashFlowItems({ limit: 100 }) });
   const operationsQuery = useQuery({ queryKey: ["accounting", "cash-flow-operation-types"], queryFn: () => getCashFlowOperationTypes({ limit: 100 }) });
   const projectsQuery = useQuery({ queryKey: ["accounting", "projects"], queryFn: () => getProjects({ limit: 100 }) });
 
@@ -82,16 +89,14 @@ export const AccountingDictionariesPage = () => {
     enabled: Boolean(organizationId || counterpartyId),
   });
 
-  const operationsRefetch = operationsQuery.refetch;
-  const projectsRefetch = projectsQuery.refetch;
-
   const createOperationMutation = useMutation({
     mutationFn: createCashFlowOperationType,
     onSuccess: () => {
       message.success("Вид операции создан");
       setOperationModalOpen(false);
+      setEditingOperation(null);
       operationForm.resetFields();
-      void operationsRefetch();
+      void operationsQuery.refetch();
     },
     onError: (error) => message.error(apiError(error, "Ошибка создания вида операции")),
   });
@@ -103,7 +108,7 @@ export const AccountingDictionariesPage = () => {
       setOperationModalOpen(false);
       setEditingOperation(null);
       operationForm.resetFields();
-      void operationsRefetch();
+      void operationsQuery.refetch();
     },
     onError: (error) => message.error(apiError(error, "Ошибка обновления вида операции")),
   });
@@ -112,7 +117,7 @@ export const AccountingDictionariesPage = () => {
     mutationFn: deleteCashFlowOperationType,
     onSuccess: () => {
       message.success("Вид операции деактивирован");
-      void operationsRefetch();
+      void operationsQuery.refetch();
     },
     onError: (error) => message.error(apiError(error, "Ошибка деактивации вида операции")),
   });
@@ -122,8 +127,9 @@ export const AccountingDictionariesPage = () => {
     onSuccess: () => {
       message.success("Проект создан");
       setProjectModalOpen(false);
+      setEditingProject(null);
       projectForm.resetFields();
-      void projectsRefetch();
+      void projectsQuery.refetch();
     },
     onError: (error) => message.error(apiError(error, "Ошибка создания проекта")),
   });
@@ -135,7 +141,7 @@ export const AccountingDictionariesPage = () => {
       setProjectModalOpen(false);
       setEditingProject(null);
       projectForm.resetFields();
-      void projectsRefetch();
+      void projectsQuery.refetch();
     },
     onError: (error) => message.error(apiError(error, "Ошибка обновления проекта")),
   });
@@ -144,9 +150,33 @@ export const AccountingDictionariesPage = () => {
     mutationFn: deleteProject,
     onSuccess: () => {
       message.success("Проект деактивирован");
-      void projectsRefetch();
+      void projectsQuery.refetch();
     },
     onError: (error) => message.error(apiError(error, "Ошибка деактивации проекта")),
+  });
+
+  const createCashFlowItemMutation = useMutation({
+    mutationFn: createCashFlowItem,
+    onSuccess: () => {
+      message.success("Статья ДДС создана");
+      setCashFlowItemModalOpen(false);
+      setEditingCashFlowItem(null);
+      cashFlowItemForm.resetFields();
+      void cashFlowItemsQuery.refetch();
+    },
+    onError: (error) => message.error(apiError(error, "Ошибка создания статьи ДДС")),
+  });
+
+  const updateCashFlowItemMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) => updateCashFlowItem(id, payload),
+    onSuccess: () => {
+      message.success("Статья ДДС обновлена");
+      setCashFlowItemModalOpen(false);
+      setEditingCashFlowItem(null);
+      cashFlowItemForm.resetFields();
+      void cashFlowItemsQuery.refetch();
+    },
+    onError: (error) => message.error(apiError(error, "Ошибка обновления статьи ДДС")),
   });
 
   const contractColumns = useMemo(
@@ -162,9 +192,6 @@ export const AccountingDictionariesPage = () => {
     ],
     [],
   );
-
-  const operationsData = operationsQuery.data ?? [];
-  const projectsData = projectsQuery.data ?? [];
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
@@ -188,16 +215,8 @@ export const AccountingDictionariesPage = () => {
 
       <Tabs
         items={[
-          {
-            key: "organizations",
-            label: "Организации",
-            children: <DictionaryTable title="Организации" data={organizationsQuery.data ?? []} loading={organizationsQuery.isLoading} showSource />,
-          },
-          {
-            key: "counterparties",
-            label: "Контрагенты",
-            children: <DictionaryTable title="Контрагенты" data={counterpartiesQuery.data ?? []} loading={counterpartiesQuery.isLoading} showSource />,
-          },
+          { key: "organizations", label: "Организации", children: <DictionaryTable title="Организации" data={organizationsQuery.data ?? []} loading={organizationsQuery.isLoading} showSource /> },
+          { key: "counterparties", label: "Контрагенты", children: <DictionaryTable title="Контрагенты" data={counterpartiesQuery.data ?? []} loading={counterpartiesQuery.isLoading} showSource /> },
           {
             key: "contracts",
             label: "Договоры",
@@ -205,33 +224,73 @@ export const AccountingDictionariesPage = () => {
               <Card size="small" title="Договоры контрагентов">
                 <Form form={contractFilterForm} layout="inline" style={{ marginBottom: 12 }}>
                   <Form.Item name="organization_id" label="Организация">
-                    <Select
-                      allowClear
-                      style={{ width: 320 }}
-                      options={(organizationsQuery.data ?? []).map((item) => ({ value: item.id, label: item.name }))}
-                    />
+                    <Select allowClear style={{ width: 320 }} options={(organizationsQuery.data ?? []).map((item) => ({ value: item.id, label: item.name }))} />
                   </Form.Item>
                   <Form.Item name="counterparty_id" label="Контрагент">
-                    <Select
-                      allowClear
-                      style={{ width: 320 }}
-                      options={(counterpartiesQuery.data ?? []).map((item) => ({ value: item.id, label: item.name }))}
-                    />
+                    <Select allowClear style={{ width: 320 }} options={(counterpartiesQuery.data ?? []).map((item) => ({ value: item.id, label: item.name }))} />
                   </Form.Item>
                 </Form>
-                <Table<CounterpartyContractItem>
-                  rowKey="id"
-                  loading={contractsQuery.isLoading}
-                  dataSource={contractsQuery.data ?? []}
-                  columns={contractColumns}
-                />
+                <Table<CounterpartyContractItem> rowKey="id" loading={contractsQuery.isLoading} dataSource={contractsQuery.data ?? []} columns={contractColumns} />
               </Card>
             ),
           },
+          { key: "currencies", label: "Валюты", children: <DictionaryTable title="Валюты" data={currenciesQuery.data ?? []} loading={currenciesQuery.isLoading} showSource /> },
+          { key: "expense-items", label: "Статьи затрат", children: <DictionaryTable title="Статьи затрат" data={expenseItemsQuery.data ?? []} loading={expenseItemsQuery.isLoading} showSource /> },
           {
-            key: "currencies",
-            label: "Валюты",
-            children: <DictionaryTable title="Валюты" data={currenciesQuery.data ?? []} loading={currenciesQuery.isLoading} showSource />,
+            key: "cash-flow-items",
+            label: "Статьи ДДС",
+            children: (
+              <Card
+                size="small"
+                title="Статьи движения денежных средств"
+                extra={
+                  <Can permission="accounting.cash_flow_item.manage">
+                    <Button
+                      type="primary"
+                      onClick={() => {
+                        setEditingCashFlowItem(null);
+                        cashFlowItemForm.resetFields();
+                        cashFlowItemForm.setFieldsValue({ direction: "Both", is_active: true, source_system: "1C" });
+                        setCashFlowItemModalOpen(true);
+                      }}
+                    >
+                      Создать
+                    </Button>
+                  </Can>
+                }
+              >
+                <Table
+                  rowKey="id"
+                  loading={cashFlowItemsQuery.isLoading}
+                  dataSource={cashFlowItemsQuery.data ?? []}
+                  columns={[
+                    { title: "Код", dataIndex: "code" },
+                    { title: "Наименование", dataIndex: "name" },
+                    { title: "Полное наименование", dataIndex: "full_name" },
+                    { title: "Направление", dataIndex: "direction" },
+                    { title: "Активен", dataIndex: "is_active", render: (value: boolean) => <Tag color={value ? "green" : "red"}>{value ? "Да" : "Нет"}</Tag> },
+                    { title: "Источник", dataIndex: "source_system" },
+                    { title: "External ID", dataIndex: "external_id" },
+                    {
+                      title: "Действия",
+                      render: (_, row: CashFlowItemDictionaryItem) => (
+                        <Can permission="accounting.cash_flow_item.manage">
+                          <Button
+                            onClick={() => {
+                              setEditingCashFlowItem(row);
+                              cashFlowItemForm.setFieldsValue(row);
+                              setCashFlowItemModalOpen(true);
+                            }}
+                          >
+                            Редактировать
+                          </Button>
+                        </Can>
+                      ),
+                    },
+                  ]}
+                />
+              </Card>
+            ),
           },
           {
             key: "cash-flow-operation-types",
@@ -258,7 +317,7 @@ export const AccountingDictionariesPage = () => {
                 <Table
                   rowKey="id"
                   loading={operationsQuery.isLoading}
-                  dataSource={operationsData}
+                  dataSource={operationsQuery.data ?? []}
                   columns={[
                     { title: "Code", dataIndex: "code" },
                     { title: "Name", dataIndex: "name" },
@@ -314,7 +373,7 @@ export const AccountingDictionariesPage = () => {
                 <Table
                   rowKey="id"
                   loading={projectsQuery.isLoading}
-                  dataSource={projectsData}
+                  dataSource={projectsQuery.data ?? []}
                   columns={[
                     { title: "Code", dataIndex: "code" },
                     { title: "Name", dataIndex: "name" },
@@ -345,13 +404,35 @@ export const AccountingDictionariesPage = () => {
               </Card>
             ),
           },
-          {
-            key: "expense-items",
-            label: "Статьи затрат",
-            children: <DictionaryTable title="Статьи затрат" data={expenseItemsQuery.data ?? []} loading={expenseItemsQuery.isLoading} showSource />,
-          },
         ]}
       />
+
+      <Modal title={editingCashFlowItem ? "Редактировать статью ДДС" : "Создать статью ДДС"} open={cashFlowItemModalOpen} onCancel={() => setCashFlowItemModalOpen(false)} footer={null}>
+        <Form
+          form={cashFlowItemForm}
+          layout="vertical"
+          onFinish={(values) => {
+            if (editingCashFlowItem) {
+              updateCashFlowItemMutation.mutate({ id: editingCashFlowItem.id, payload: values });
+            } else {
+              createCashFlowItemMutation.mutate(values);
+            }
+          }}
+        >
+          <Form.Item name="external_id" label="External ID"><Input /></Form.Item>
+          <Form.Item name="code" label="Код"><Input /></Form.Item>
+          <Form.Item name="name" label="Наименование" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="full_name" label="Полное наименование"><Input.TextArea rows={3} /></Form.Item>
+          <Form.Item name="direction" label="Направление" rules={[{ required: true }]}>
+            <Select options={[{ value: "Inflow", label: "Inflow" }, { value: "Outflow", label: "Outflow" }, { value: "Both", label: "Both" }]} />
+          </Form.Item>
+          <Form.Item name="source_system" label="Источник"><Input /></Form.Item>
+          <Form.Item name="is_active" label="Статус">
+            <Select options={[{ value: true, label: "Активен" }, { value: false, label: "Неактивен" }]} />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" loading={createCashFlowItemMutation.isPending || updateCashFlowItemMutation.isPending}>Сохранить</Button>
+        </Form>
+      </Modal>
 
       <Modal title={editingOperation ? "Редактировать вид операции" : "Создать вид операции"} open={operationModalOpen} onCancel={() => setOperationModalOpen(false)} footer={null}>
         <Form

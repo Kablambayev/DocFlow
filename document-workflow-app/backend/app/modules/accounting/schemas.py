@@ -35,6 +35,10 @@ class AccountingExpenseItemRead(AccountingDictionaryBaseRead):
     pass
 
 
+class AccountingCashFlowItemRead(AccountingDictionaryBaseRead):
+    direction: str
+
+
 class AccountingCounterpartyContractRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -75,6 +79,28 @@ class CashFlowOperationTypeUpdate(BaseModel):
     description: str | None = None
     sort_order: int | None = None
     is_active: bool | None = None
+
+
+class AccountingCashFlowItemCreate(BaseModel):
+    external_id: str | None = None
+    code: str | None = None
+    name: str
+    full_name: str | None = None
+    direction: str = "Both"
+    is_active: bool = True
+    source_system: str = "1C"
+    raw_data: dict = {}
+
+
+class AccountingCashFlowItemUpdate(BaseModel):
+    external_id: str | None = None
+    code: str | None = None
+    name: str | None = None
+    full_name: str | None = None
+    direction: str | None = None
+    is_active: bool | None = None
+    source_system: str | None = None
+    raw_data: dict | None = None
 
 
 class AccountingProjectRead(BaseModel):

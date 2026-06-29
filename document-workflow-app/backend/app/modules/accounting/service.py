@@ -7,6 +7,8 @@ from fastapi import status
 from app.core.exceptions import AppError
 from app.modules.accounting.repository import AccountingRepository
 from app.modules.accounting.schemas import (
+    AccountingCashFlowItemCreate,
+    AccountingCashFlowItemUpdate,
     AccountingProjectCreate,
     AccountingProjectUpdate,
     CashFlowOperationTypeCreate,
@@ -42,6 +44,30 @@ class AccountingService:
 
     def list_expense_items(self, search: str | None, is_active: bool | None, limit: int, offset: int):
         return self.repository.list_expense_items(search, is_active, limit, offset)
+
+    def list_cash_flow_items(self, search: str | None, is_active: bool | None, limit: int, offset: int):
+        return self.repository.list_cash_flow_items(search, is_active, limit, offset)
+
+    def create_cash_flow_item(self, payload: AccountingCashFlowItemCreate):
+        if payload.code and self.repository.get_cash_flow_item_by_code(payload.code):
+            raise AppError("Cash flow item code already exists", code="ACCOUNTING_CODE_EXISTS", status_code=409)
+        item = self.repository.create_cash_flow_item(payload)
+        self.repository.db.commit()
+        self.repository.db.refresh(item)
+        return item
+
+    def update_cash_flow_item(self, item_id: UUID, payload: AccountingCashFlowItemUpdate):
+        item = self.repository.get_cash_flow_item(item_id)
+        if item is None:
+            raise AppError("Cash flow item not found", code="ACCOUNTING_NOT_FOUND", status_code=404)
+        if payload.code and item.code and payload.code.lower() != item.code.lower():
+            existing = self.repository.get_cash_flow_item_by_code(payload.code)
+            if existing is not None and existing.id != item.id:
+                raise AppError("Cash flow item code already exists", code="ACCOUNTING_CODE_EXISTS", status_code=409)
+        updated = self.repository.update_cash_flow_item(item, payload)
+        self.repository.db.commit()
+        self.repository.db.refresh(updated)
+        return updated
 
     def list_cash_flow_operation_types(self, search: str | None, is_active: bool | None, limit: int, offset: int):
         return self.repository.list_cash_flow_operation_types(search, is_active, limit, offset)

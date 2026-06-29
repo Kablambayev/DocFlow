@@ -1330,3 +1330,35 @@ The integration diagnostics contour passed in the browser on an existing Approve
 8. With `ONE_C_ENABLED=false`, expect `disabled` plus a `Skipped` log and no HTTP call.
 
 Commands are in `docs/1c-http-examples.md`.
+
+## 7. Stage 13 - CashFlowAllocation / BDDS mapping smoke
+
+Stage 13 introduces the first BDDS preparation layer. The report itself is still out of scope.
+
+Backend smoke:
+1. `python.exe -m alembic upgrade head`
+2. `python.exe scripts/seed_dev.py`
+3. `python.exe -B -c "import app.main"`
+4. `python.exe -m pytest`
+
+Frontend smoke:
+1. `npm.cmd run lint`
+2. `npm.cmd run build`
+3. Start dev server if browser verification is needed.
+
+Recommended browser smoke:
+1. Open `УпрУчет` as `accounting_admin`.
+2. Verify tab `Статьи ДДС` is visible.
+3. Open `Сопоставление БДДС`.
+4. Verify six default mapping rules are visible.
+5. Open rule `ППИ → Разноска БДДС`.
+6. Check mapping fields table.
+7. Open tab `Тест маппинга`.
+8. Paste sample JSON from `docs/cash-flow-bdds.md`.
+9. Run test mapping.
+10. Verify mapped source fields, dictionary lookup resolution, and `NeedsEnrichment` when required analytics are missing.
+
+Session result:
+- backend automated checks passed;
+- frontend lint/build passed;
+- manual browser smoke for Stage 13 was not executed in this session.

@@ -68,6 +68,16 @@ class ExpenseItemImportItem(BaseModel):
     raw_data: dict[str, Any] = Field(default_factory=dict)
 
 
+class CashFlowItemImportItem(BaseModel):
+    external_id: str
+    name: str
+    code: str | None = None
+    full_name: str | None = None
+    direction: str = "Both"
+    is_active: bool = True
+    raw_data: dict[str, Any] = Field(default_factory=dict)
+
+
 class CounterpartyContractImportItem(BaseModel):
     external_id: str
     organization_external_id: str

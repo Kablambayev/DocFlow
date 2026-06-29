@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import type { DynamicFieldSchema, DynamicFormSchema } from "../types/document";
 import {
   getCashFlowOperationTypes,
+  getCashFlowItems,
   getCounterparties,
   getCounterpartyContracts,
   getCurrencies,
@@ -34,6 +35,7 @@ const dictionaryLoaders = {
   counterparty_contracts: getCounterpartyContracts,
   currencies: getCurrencies,
   expense_items: getExpenseItems,
+  cash_flow_items: getCashFlowItems,
   cash_flow_operation_types: getCashFlowOperationTypes,
   projects: getProjects,
 } as const;

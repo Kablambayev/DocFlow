@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.modules.accounting import models as accounting_models  # noqa: F401
 from app.modules.audit import models as audit_models  # noqa: F401
+from app.modules.cash_flow import mapping_models as cash_flow_mapping_models  # noqa: F401
 from app.modules.document_types import models as document_type_models  # noqa: F401
 from app.modules.documents import models as document_models  # noqa: F401
 from app.modules.files import models as file_models  # noqa: F401

@@ -6,6 +6,7 @@ from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.modules.accounting.models import (
+    AccountingCashFlowItem,
     AccountingCashFlowOperationType,
     AccountingCounterparty,
     AccountingCounterpartyContract,
@@ -15,6 +16,8 @@ from app.modules.accounting.models import (
     AccountingProject,
 )
 from app.modules.accounting.schemas import (
+    AccountingCashFlowItemCreate,
+    AccountingCashFlowItemUpdate,
     AccountingProjectCreate,
     AccountingProjectUpdate,
     CashFlowOperationTypeCreate,
@@ -106,6 +109,45 @@ class AccountingRepository:
             stmt = stmt.where(AccountingExpenseItem.is_active.is_(is_active))
         stmt = stmt.order_by(AccountingExpenseItem.name).limit(limit).offset(offset)
         return list(self.db.scalars(stmt))
+
+    def list_cash_flow_items(self, search: str | None, is_active: bool | None, limit: int, offset: int):
+        stmt: Select[tuple[AccountingCashFlowItem]] = select(AccountingCashFlowItem)
+        predicate = _search_filter(search, AccountingCashFlowItem.code, AccountingCashFlowItem.name, AccountingCashFlowItem.full_name)
+        if predicate is not None:
+            stmt = stmt.where(predicate)
+        if is_active is not None:
+            stmt = stmt.where(AccountingCashFlowItem.is_active.is_(is_active))
+        stmt = stmt.order_by(AccountingCashFlowItem.name).limit(limit).offset(offset)
+        return list(self.db.scalars(stmt))
+
+    def get_cash_flow_item(self, item_id: UUID):
+        return self.db.get(AccountingCashFlowItem, item_id)
+
+    def get_cash_flow_item_by_external_id(self, source_system: str, external_id: str):
+        return self.db.scalar(
+            select(AccountingCashFlowItem).where(
+                AccountingCashFlowItem.source_system == source_system,
+                AccountingCashFlowItem.external_id == external_id,
+            )
+        )
+
+    def get_cash_flow_item_by_code(self, code: str):
+        return self.db.scalar(select(AccountingCashFlowItem).where(func.lower(AccountingCashFlowItem.code) == code.lower()))
+
+    def get_cash_flow_item_by_name(self, name: str):
+        return self.db.scalar(select(AccountingCashFlowItem).where(func.lower(AccountingCashFlowItem.name) == name.lower()))
+
+    def create_cash_flow_item(self, payload: AccountingCashFlowItemCreate):
+        item = AccountingCashFlowItem(**payload.model_dump())
+        self.db.add(item)
+        self.db.flush()
+        return item
+
+    def update_cash_flow_item(self, item: AccountingCashFlowItem, payload: AccountingCashFlowItemUpdate):
+        for key, value in payload.model_dump(exclude_unset=True).items():
+            setattr(item, key, value)
+        self.db.flush()
+        return item
 
     def list_cash_flow_operation_types(self, search: str | None, is_active: bool | None, limit: int, offset: int):
         stmt: Select[tuple[AccountingCashFlowOperationType]] = select(AccountingCashFlowOperationType)
@@ -201,6 +243,9 @@ class AccountingRepository:
 
     def get_active_expense_item(self, item_id: UUID):
         return self.db.scalar(select(AccountingExpenseItem).where(AccountingExpenseItem.id == item_id, AccountingExpenseItem.is_active.is_(True)))
+
+    def get_active_cash_flow_item(self, item_id: UUID):
+        return self.db.scalar(select(AccountingCashFlowItem).where(AccountingCashFlowItem.id == item_id, AccountingCashFlowItem.is_active.is_(True)))
 
     def get_active_cash_flow_operation_type(self, item_id: UUID):
         return self.db.scalar(select(AccountingCashFlowOperationType).where(AccountingCashFlowOperationType.id == item_id, AccountingCashFlowOperationType.is_active.is_(True)))

@@ -755,3 +755,77 @@ Only operations whose `document_id` equals the supplied UUID are returned. The f
 The journal also initializes `direction`, `operation_type`, and `status` from query parameters. These are diagnostics/navigation additions only; inbound and outbound 1C payload contracts are unchanged.
 
 An inbound item with an empty counterparty `name` is rejected at item level with `VALIDATION_ERROR`. Other valid items in the same batch are processed and the operation log status is `PartialSuccess`. Sensitive values in both valid and rejected raw items continue to be recursively masked.
+
+## 13. Stage 13 - cash flow items and mapping rules
+
+New inbound dictionary endpoint:
+- `POST /api/v1/integration/1c/cash-flow-items/import`
+
+Envelope is the same as other Stage 9 dictionary imports:
+
+```json
+{
+  "source_system": "1C",
+  "items": [
+    {
+      "external_id": "dds-supplier-payment",
+      "code": "DDS-001",
+      "name": "Оплата поставщикам",
+      "full_name": "Оплата поставщикам за товары и услуги",
+      "direction": "Outflow",
+      "is_active": true,
+      "raw_data": {}
+    }
+  ]
+}
+```
+
+Rules:
+- required: `external_id`, `name`;
+- `direction` default: `Both`;
+- operation log type: `1c_import_cash_flow_items`.
+
+Cash flow mapping rules are configured inside DocFlow and applied to normalized 1C JSON. Supported mapping types:
+- `path`
+- `constant`
+- `default`
+- `dictionary_lookup`
+
+Simple JSON path format:
+- `$.field`
+- `$.nested.field`
+- `$.array.0.field`
+
+`dictionary_lookup` supports:
+- `organization`
+- `counterparty`
+- `contract`
+- `currency`
+- `project`
+- `cash_flow_operation_type`
+- `cash_flow_item`
+
+Lookup keys:
+- `external_id`
+- `code`
+- `name`
+
+Default outgoing sample JSON for rule testing:
+
+```json
+{
+  "ref": "1c-guid",
+  "number": "000000123",
+  "date": "2026-06-29",
+  "posted_at": "2026-06-29T10:00:00+05:00",
+  "organization": { "external_id": "ORG-001" },
+  "counterparty": { "external_id": "CNT-001" },
+  "contract": { "external_id": "CTR-ORG1-CNT1-142" },
+  "currency": { "external_id": "CUR-KZT" },
+  "amount": 1500000,
+  "payment_purpose": "Оплата поставщику",
+  "comment": "",
+  "project": { "code": "ERP" },
+  "cash_flow_item": { "external_id": "dds-supplier-payment" }
+}
+```

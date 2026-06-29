@@ -12,6 +12,7 @@ from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.modules.accounting.models import (
+    AccountingCashFlowItem,
     AccountingCashFlowOperationType,
     AccountingCounterparty,
     AccountingCounterpartyContract,
@@ -20,6 +21,7 @@ from app.modules.accounting.models import (
     AccountingOrganization,
     AccountingProject,
 )
+from app.modules.cash_flow.mapping_models import CashFlowMappingRule
 from app.main import app
 from app.modules.document_types.models import DocumentType, DocumentTypeVersion, VersionStatus
 from app.modules.documents.models import Document
@@ -61,6 +63,7 @@ def users(db) -> dict[str, User]:
         "author": "author@example.com",
         "approver": "approver@example.com",
         "accounting_admin": "accounting_admin@example.com",
+        "technical_admin": "technical_admin@example.com",
     }.items():
         user = db.scalar(select(User).where(User.email == email))
         assert user is not None, f"Missing seed user {email}"
@@ -93,6 +96,8 @@ def seed_refs(db) -> dict[str, object]:
     )
     project = db.scalar(select(AccountingProject).where(AccountingProject.code == "MAIN"))
     expense_item = db.scalar(select(AccountingExpenseItem).where(AccountingExpenseItem.code == "EXP-002"))
+    cash_flow_item = db.scalar(select(AccountingCashFlowItem).where(AccountingCashFlowItem.code == "DDS-001"))
+    cash_flow_rule = db.scalar(select(CashFlowMappingRule).where(CashFlowMappingRule.name == "ППИ → Разноска БДДС"))
 
     assert organization is not None
     assert counterparty is not None
@@ -101,6 +106,8 @@ def seed_refs(db) -> dict[str, object]:
     assert cash_flow_operation_type is not None
     assert project is not None
     assert expense_item is not None
+    assert cash_flow_item is not None
+    assert cash_flow_rule is not None
 
     return {
         "document_type": document_type,
@@ -112,9 +119,11 @@ def seed_refs(db) -> dict[str, object]:
             "contract_id": str(contract.id),
             "currency_id": str(currency.id),
             "cash_flow_operation_type_id": str(cash_flow_operation_type.id),
+            "cash_flow_item_id": str(cash_flow_item.id),
             "project_id": str(project.id),
             "expense_item_id": str(expense_item.id),
         },
+        "cash_flow_rule": cash_flow_rule,
     }
 
 

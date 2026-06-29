@@ -15,6 +15,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from app.db.session import SessionLocal
 from app.modules.accounting.models import (
+    AccountingCashFlowItem,
     AccountingCashFlowOperationType,
     AccountingCounterparty,
     AccountingCounterpartyContract,
@@ -23,6 +24,7 @@ from app.modules.accounting.models import (
     AccountingOrganization,
     AccountingProject,
 )
+from app.modules.cash_flow.mapping_models import CashFlowMappingRule, CashFlowMappingRuleField
 from app.modules.document_types.models import DocumentType, DocumentTypeVersion, VersionStatus
 from app.modules.documents.models import Document, DocumentApprovalStatus
 from app.modules.roles.models import Role
@@ -83,6 +85,12 @@ PERMISSIONS = [
     ("accounting.read", "Read accounting dictionaries"),
     ("accounting.manage", "Manage accounting local dictionaries"),
     ("accounting.sync", "Sync accounting external dictionaries"),
+    ("accounting.cash_flow_item.read", "Read cash flow items"),
+    ("accounting.cash_flow_item.manage", "Manage cash flow items"),
+    ("cash_flow.mapping.read", "Read cash flow mapping rules"),
+    ("cash_flow.mapping.manage", "Manage cash flow mapping rules"),
+    ("cash_flow.allocation.read", "Read cash flow allocations"),
+    ("cash_flow.allocation.manage", "Manage cash flow allocations"),
     ("integration_1c.payment_request.send", "Send approved payment requests to 1C"),
     ("integration_1c.diagnostics.read", "Read 1C integration diagnostics"),
     ("integration_1c.diagnostics.run", "Run 1C integration diagnostics"),
@@ -153,6 +161,12 @@ ROLE_PERMISSIONS = {
         "accounting.read",
         "accounting.manage",
         "accounting.sync",
+        "accounting.cash_flow_item.read",
+        "accounting.cash_flow_item.manage",
+        "cash_flow.mapping.read",
+        "cash_flow.mapping.manage",
+        "cash_flow.allocation.read",
+        "cash_flow.allocation.manage",
         "integration_1c.payment_request.send",
         "integration_1c.diagnostics.read",
         "integration_1c.diagnostics.run",
@@ -164,6 +178,9 @@ ROLE_PERMISSIONS = {
         "integration_1c.diagnostics.run",
         "integration.log.read",
         "integration.log.manage",
+        "cash_flow.mapping.read",
+        "cash_flow.mapping.manage",
+        "accounting.cash_flow_item.read",
     ],
 }
 
@@ -358,6 +375,29 @@ def seed_accounting_dictionaries(db) -> dict[str, object]:
     _find_or_create_local_by_code(db, AccountingCashFlowOperationType, "loan_payment", "Погашение займа", {"description": None, "sort_order": 40})
     _find_or_create_local_by_code(db, AccountingCashFlowOperationType, "other_payment", "Прочий платеж", {"description": None, "sort_order": 100})
 
+    _find_or_create_by_external(
+        db,
+        AccountingCashFlowItem,
+        "dds-supplier-payment",
+        "Оплата поставщикам",
+        code="DDS-001",
+        extra={
+            "full_name": "Оплата поставщикам за товары и услуги",
+            "direction": "Outflow",
+        },
+    )
+    _find_or_create_by_external(
+        db,
+        AccountingCashFlowItem,
+        "dds-customer-payment",
+        "Поступление от покупателей",
+        code="DDS-002",
+        extra={
+            "full_name": "Поступление оплаты от покупателей",
+            "direction": "Inflow",
+        },
+    )
+
     _find_or_create_local_by_code(db, AccountingProject, "MAIN", "Основная деятельность")
     _find_or_create_local_by_code(db, AccountingProject, "ERP", "Внедрение ERP")
     _find_or_create_local_by_code(db, AccountingProject, "WAREHOUSE", "Складской проект")
@@ -372,8 +412,223 @@ def seed_accounting_dictionaries(db) -> dict[str, object]:
         "cash_flow_operation_type": db.scalar(
             select(AccountingCashFlowOperationType).where(AccountingCashFlowOperationType.code == "supplier_payment")
         ),
+        "cash_flow_item": db.scalar(select(AccountingCashFlowItem).where(AccountingCashFlowItem.code == "DDS-001")),
         "project": db.scalar(select(AccountingProject).where(AccountingProject.code == "MAIN")),
     }
+
+
+def build_cash_flow_allocation_schema() -> dict:
+    return {
+        "sections": [
+            {
+                "code": "source_1c",
+                "name": "Источник 1С",
+                "sortOrder": 10,
+                "fields": [
+                    {"code": "source_system", "name": "Источник", "type": "string", "readonly": True, "sortOrder": 10},
+                    {"code": "source_document_external_id", "name": "Внешний ID документа 1С", "type": "string", "readonly": True, "sortOrder": 20},
+                    {
+                        "code": "source_document_type",
+                        "name": "Нормализованный тип документа",
+                        "type": "enum",
+                        "readonly": True,
+                        "sortOrder": 30,
+                        "settings": {
+                            "options": [
+                                "PaymentOrderIncoming",
+                                "CashReceiptOrder",
+                                "MoneyReceiptOrder",
+                                "PaymentOrderOutgoing",
+                                "CashExpenseOrder",
+                                "MoneyExpenseOrder",
+                            ]
+                        },
+                    },
+                    {"code": "source_document_type_1c", "name": "Тип документа 1С", "type": "string", "readonly": True, "sortOrder": 40},
+                    {"code": "source_document_number", "name": "Номер документа", "type": "string", "readonly": True, "sortOrder": 50},
+                    {"code": "source_document_date", "name": "Дата документа", "type": "date", "readonly": True, "sortOrder": 60},
+                    {"code": "source_document_posted_at", "name": "Дата проведения", "type": "datetime", "readonly": True, "sortOrder": 70},
+                    {"code": "source_document_amount", "name": "Сумма документа", "type": "money", "readonly": True, "sortOrder": 80},
+                    {
+                        "code": "source_document_currency_id",
+                        "name": "Валюта документа",
+                        "type": "dictionary",
+                        "readonly": True,
+                        "sortOrder": 90,
+                        "settings": {"dictionary": "currencies", "valueField": "id", "labelField": "code", "searchable": True},
+                    },
+                    {"code": "source_document_purpose", "name": "Назначение платежа", "type": "text", "readonly": True, "sortOrder": 100},
+                    {"code": "source_document_comment", "name": "Комментарий", "type": "text", "readonly": True, "sortOrder": 110},
+                    {"code": "source_changed", "name": "Источник изменен", "type": "boolean", "readonly": True, "sortOrder": 120},
+                    {"code": "raw_source_payload", "name": "Сырой payload", "type": "text", "readonly": True, "sortOrder": 130},
+                ],
+            },
+            {
+                "code": "main",
+                "name": "Основные реквизиты",
+                "sortOrder": 20,
+                "fields": [
+                    {
+                        "code": "cash_flow_direction",
+                        "name": "Направление ДДС",
+                        "type": "enum",
+                        "required": True,
+                        "sortOrder": 10,
+                        "settings": {"options": ["Inflow", "Outflow"]},
+                    },
+                    {
+                        "code": "organization_id",
+                        "name": "Организация",
+                        "type": "dictionary",
+                        "sortOrder": 20,
+                        "settings": {"dictionary": "organizations", "valueField": "id", "labelField": "name", "searchable": True},
+                    },
+                    {
+                        "code": "counterparty_id",
+                        "name": "Контрагент",
+                        "type": "dictionary",
+                        "sortOrder": 30,
+                        "settings": {"dictionary": "counterparties", "valueField": "id", "labelField": "name", "searchable": True},
+                    },
+                    {
+                        "code": "contract_id",
+                        "name": "Договор",
+                        "type": "dictionary",
+                        "sortOrder": 40,
+                        "settings": {
+                            "dictionary": "counterparty_contracts",
+                            "valueField": "id",
+                            "labelField": "name",
+                            "searchable": True,
+                            "dependsOn": [
+                                {"field": "organization_id", "param": "organization_id"},
+                                {"field": "counterparty_id", "param": "counterparty_id"},
+                            ],
+                        },
+                    },
+                    {
+                        "code": "currency_id",
+                        "name": "Валюта",
+                        "type": "dictionary",
+                        "sortOrder": 50,
+                        "settings": {"dictionary": "currencies", "valueField": "id", "labelField": "code", "searchable": True},
+                    },
+                    {"code": "amount", "name": "Сумма", "type": "money", "sortOrder": 60},
+                    {"code": "payment_purpose", "name": "Назначение платежа", "type": "text", "sortOrder": 70},
+                ],
+            },
+            {
+                "code": "analytics",
+                "name": "Аналитика БДДС",
+                "sortOrder": 30,
+                "fields": [
+                    {
+                        "code": "cash_flow_item_id",
+                        "name": "Статья ДДС",
+                        "type": "dictionary",
+                        "sortOrder": 10,
+                        "settings": {"dictionary": "cash_flow_items", "valueField": "id", "labelField": "name", "searchable": True},
+                    },
+                    {
+                        "code": "project_id",
+                        "name": "Проект",
+                        "type": "dictionary",
+                        "sortOrder": 20,
+                        "settings": {"dictionary": "projects", "valueField": "id", "labelField": "name", "searchable": True},
+                    },
+                    {
+                        "code": "cash_flow_operation_type_id",
+                        "name": "Вид операции ДС",
+                        "type": "dictionary",
+                        "sortOrder": 30,
+                        "settings": {
+                            "dictionary": "cash_flow_operation_types",
+                            "valueField": "id",
+                            "labelField": "name",
+                            "searchable": True,
+                        },
+                    },
+                    {"code": "management_comment", "name": "Комментарий управленческого учета", "type": "text", "sortOrder": 40},
+                    {
+                        "code": "allocation_status",
+                        "name": "Статус разноски",
+                        "type": "enum",
+                        "sortOrder": 50,
+                        "settings": {"options": ["NeedsEnrichment", "Completed", "Ignored", "Draft"]},
+                    },
+                ],
+            },
+            {
+                "code": "service",
+                "name": "Служебные данные",
+                "sortOrder": 40,
+                "fields": [
+                    {"code": "import_batch_id", "name": "Пакет импорта", "type": "string", "readonly": True, "sortOrder": 10},
+                    {"code": "mapping_rule_id", "name": "Правило сопоставления", "type": "string", "readonly": True, "sortOrder": 20},
+                    {"code": "mapping_result", "name": "Результат маппинга", "type": "string", "readonly": True, "sortOrder": 30},
+                    {"code": "missing_required_fields", "name": "Недостающие поля", "type": "text", "readonly": True, "sortOrder": 40},
+                ],
+            },
+        ]
+    }
+
+
+def get_or_create_cash_flow_allocation_document_type(db) -> DocumentType:
+    code = "CashFlowAllocation"
+    existing = db.scalar(select(DocumentType).where(DocumentType.code == code))
+    if existing is not None:
+        existing.name = "Разноска БДДС"
+        existing.is_active = True
+        return existing
+
+    item = DocumentType(
+        code=code,
+        name="Разноска БДДС",
+        description="Документ для аналитики БДДС по движениям денежных средств из 1С",
+        is_system=True,
+        is_active=True,
+    )
+    db.add(item)
+    db.flush()
+    return item
+
+
+def get_or_create_cash_flow_allocation_version(db, document_type_id) -> DocumentTypeVersion:
+    existing_published_versions = list(
+        db.scalars(
+            select(DocumentTypeVersion)
+            .where(
+                DocumentTypeVersion.document_type_id == document_type_id,
+                DocumentTypeVersion.status == VersionStatus.PUBLISHED,
+            )
+            .order_by(DocumentTypeVersion.version_number.desc())
+        )
+    )
+    schema_json = build_cash_flow_allocation_schema()
+    if existing_published_versions:
+        for published_version in existing_published_versions:
+            published_version.schema_json = schema_json
+        db.flush()
+        return existing_published_versions[0]
+
+    max_version = db.scalar(
+        select(DocumentTypeVersion.version_number)
+        .where(DocumentTypeVersion.document_type_id == document_type_id)
+        .order_by(DocumentTypeVersion.version_number.desc())
+        .limit(1)
+    )
+    next_version = (max_version or 0) + 1
+
+    version = DocumentTypeVersion(
+        document_type_id=document_type_id,
+        version_number=next_version,
+        status=VersionStatus.PUBLISHED,
+        schema_json=schema_json,
+        published_at=datetime.now(timezone.utc),
+    )
+    db.add(version)
+    db.flush()
+    return version
 
 
 def enrich_payment_request_schema(schema_json: dict | None) -> dict:
@@ -672,6 +927,83 @@ def get_or_create_draft_document(db, document_type_id, doc_type_version_id, auth
     return doc
 
 
+def seed_default_cash_flow_mapping_rules(db) -> None:
+    base_fields = [
+        {"target_field": "source_system", "mapping_type": "constant", "constant_value": "1C", "sort_order": 10},
+        {"target_field": "source_document_external_id", "mapping_type": "path", "source_path": "$.ref", "is_required": True, "sort_order": 20},
+        {"target_field": "source_document_number", "mapping_type": "path", "source_path": "$.number", "sort_order": 30},
+        {"target_field": "source_document_date", "mapping_type": "path", "source_path": "$.date", "is_required": True, "sort_order": 40},
+        {"target_field": "source_document_posted_at", "mapping_type": "path", "source_path": "$.posted_at", "sort_order": 50},
+        {"target_field": "organization_id", "mapping_type": "dictionary_lookup", "dictionary_type": "organization", "lookup_by": "external_id", "source_path": "$.organization.external_id", "is_required": True, "sort_order": 60},
+        {"target_field": "counterparty_id", "mapping_type": "dictionary_lookup", "dictionary_type": "counterparty", "lookup_by": "external_id", "source_path": "$.counterparty.external_id", "sort_order": 70},
+        {"target_field": "contract_id", "mapping_type": "dictionary_lookup", "dictionary_type": "contract", "lookup_by": "external_id", "source_path": "$.contract.external_id", "sort_order": 80},
+        {"target_field": "currency_id", "mapping_type": "dictionary_lookup", "dictionary_type": "currency", "lookup_by": "external_id", "source_path": "$.currency.external_id", "is_required": True, "sort_order": 90},
+        {"target_field": "amount", "mapping_type": "path", "source_path": "$.amount", "is_required": True, "sort_order": 100},
+        {"target_field": "payment_purpose", "mapping_type": "default", "source_path": "$.payment_purpose", "default_value": "", "sort_order": 110},
+        {"target_field": "source_document_comment", "mapping_type": "default", "source_path": "$.comment", "default_value": "", "sort_order": 120},
+        {"target_field": "project_id", "mapping_type": "dictionary_lookup", "dictionary_type": "project", "lookup_by": "code", "source_path": "$.project.code", "sort_order": 130},
+        {"target_field": "cash_flow_item_id", "mapping_type": "dictionary_lookup", "dictionary_type": "cash_flow_item", "lookup_by": "external_id", "source_path": "$.cash_flow_item.external_id", "is_required": True, "sort_order": 140},
+    ]
+    rules = [
+        ("ППВ → Разноска БДДС", "ПлатежноеПоручениеВходящее", "PaymentOrderIncoming", "Inflow"),
+        ("ПКО → Разноска БДДС", "ПриходныйКассовыйОрдер", "CashReceiptOrder", "Inflow"),
+        ("Платежный ордер поступление ДС → Разноска БДДС", "ПлатежныйОрдерПоступлениеДенежныхСредств", "MoneyReceiptOrder", "Inflow"),
+        ("ППИ → Разноска БДДС", "ПлатежноеПоручениеИсходящее", "PaymentOrderOutgoing", "Outflow"),
+        ("РКО → Разноска БДДС", "РасходныйКассовыйОрдер", "CashExpenseOrder", "Outflow"),
+        ("Платежный ордер списание ДС → Разноска БДДС", "ПлатежныйОрдерСписаниеДенежныхСредств", "MoneyExpenseOrder", "Outflow"),
+    ]
+    for index, (name, type_1c, type_code, direction) in enumerate(rules, start=1):
+        rule = db.scalar(
+            select(CashFlowMappingRule).where(
+                CashFlowMappingRule.source_system == "1C",
+                CashFlowMappingRule.source_document_type_1c == type_1c,
+                CashFlowMappingRule.target_document_type_code == "CashFlowAllocation",
+                CashFlowMappingRule.priority == index * 100,
+            )
+        )
+        if rule is None:
+            rule = CashFlowMappingRule(
+                name=name,
+                source_system="1C",
+                source_document_type_1c=type_1c,
+                source_document_type_code=type_code,
+                cash_flow_direction=direction,
+                target_document_type_code="CashFlowAllocation",
+                is_active=True,
+                priority=index * 100,
+                description="Правило по умолчанию для Stage 13",
+            )
+            db.add(rule)
+            db.flush()
+        else:
+            rule.name = name
+            rule.source_document_type_code = type_code
+            rule.cash_flow_direction = direction
+            rule.is_active = True
+            rule.description = "Правило по умолчанию для Stage 13"
+
+        existing_fields = {field.target_field: field for field in rule.fields}
+        used_targets: set[str] = set()
+        for field_payload in base_fields + [
+            {"target_field": "source_document_type_1c", "mapping_type": "constant", "constant_value": type_1c, "sort_order": 150},
+            {"target_field": "source_document_type", "mapping_type": "constant", "constant_value": type_code, "sort_order": 160},
+            {"target_field": "cash_flow_direction", "mapping_type": "constant", "constant_value": direction, "is_required": True, "sort_order": 170},
+        ]:
+            target_field = field_payload["target_field"]
+            used_targets.add(target_field)
+            item = existing_fields.get(target_field)
+            if item is None:
+                item = CashFlowMappingRuleField(rule_id=rule.id, **field_payload)
+                db.add(item)
+            else:
+                for key, value in field_payload.items():
+                    setattr(item, key, value)
+        for target_field, field in existing_fields.items():
+            if target_field not in used_targets:
+                db.delete(field)
+        db.flush()
+
+
 def main() -> None:
     db = SessionLocal()
     try:
@@ -682,14 +1014,19 @@ def main() -> None:
         author = get_or_create_user(db, "author@example.com", "Author User")
         approver = get_or_create_user(db, "approver@example.com", "Approver User")
         accounting_admin = get_or_create_user(db, "accounting_admin@example.com", "Accounting Admin")
+        technical_admin = get_or_create_user(db, "technical_admin@example.com", "Technical Admin")
 
         assign_role(admin, roles["admin"])
         assign_role(author, roles["document_user"])
         assign_role(approver, roles["approver"])
         assign_role(accounting_admin, roles["accounting_admin"])
+        assign_role(technical_admin, roles["technical_admin"])
 
         doc_type = get_or_create_document_type(db)
         doc_type_version = get_or_create_published_doc_type_version(db, doc_type.id)
+        cash_flow_doc_type = get_or_create_cash_flow_allocation_document_type(db)
+        cash_flow_doc_type_version = get_or_create_cash_flow_allocation_version(db, cash_flow_doc_type.id)
+        seed_default_cash_flow_mapping_rules(db)
 
         route = get_or_create_route(db, doc_type.id)
         _route_version = get_or_create_published_route_version(db, route.id, approver.id)
@@ -704,8 +1041,11 @@ def main() -> None:
         print(f"author_id={author.id}")
         print(f"approver_id={approver.id}")
         print(f"accounting_admin_id={accounting_admin.id}")
+        print(f"technical_admin_id={technical_admin.id}")
         print(f"document_type_id={doc_type.id}")
         print(f"document_type_version_id={doc_type_version.id}")
+        print(f"cash_flow_document_type_id={cash_flow_doc_type.id}")
+        print(f"cash_flow_document_type_version_id={cash_flow_doc_type_version.id}")
         print(f"route_id={route.id}")
         print(f"document_id={document.id}")
     except Exception:

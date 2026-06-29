@@ -105,6 +105,26 @@ class AccountingCashFlowOperationType(UUIDPrimaryKeyMixin, TimestampMixin, Base)
     sort_order: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
 
 
+class AccountingCashFlowItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "accounting_cash_flow_items"
+    __table_args__ = (
+        UniqueConstraint("source_system", "external_id", name="uq_acc_cash_flow_item_source_external"),
+        Index("ix_acc_cash_flow_items_code", "code"),
+        Index("ix_acc_cash_flow_items_direction", "direction"),
+        Index("ix_acc_cash_flow_items_is_active", "is_active"),
+    )
+
+    external_id: Mapped[str | None] = mapped_column(String(100))
+    code: Mapped[str | None] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str | None] = mapped_column(Text)
+    direction: Mapped[str] = mapped_column(String(20), default="Both", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    source_system: Mapped[str] = mapped_column(String(50), default="1C", nullable=False)
+    raw_data: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AccountingProject(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "accounting_projects"
 

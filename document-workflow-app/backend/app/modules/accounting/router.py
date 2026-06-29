@@ -9,6 +9,9 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.modules.accounting.repository import AccountingRepository
 from app.modules.accounting.schemas import (
+    AccountingCashFlowItemCreate,
+    AccountingCashFlowItemRead,
+    AccountingCashFlowItemUpdate,
     AccountingCounterpartyContractRead,
     AccountingCounterpartyRead,
     AccountingCurrencyRead,
@@ -91,6 +94,37 @@ def list_expense_items(
     service: AccountingService = Depends(get_service),
 ):
     return service.list_expense_items(search, is_active, limit, offset)
+
+
+@router.get("/cash-flow-items", response_model=list[AccountingCashFlowItemRead])
+def list_cash_flow_items(
+    search: str | None = None,
+    is_active: bool | None = True,
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    _: User = Depends(require_permission("accounting.cash_flow_item.read")),
+    service: AccountingService = Depends(get_service),
+):
+    return service.list_cash_flow_items(search, is_active, limit, offset)
+
+
+@router.post("/cash-flow-items", response_model=AccountingCashFlowItemRead)
+def create_cash_flow_item(
+    payload: AccountingCashFlowItemCreate,
+    _: User = Depends(require_permission("accounting.cash_flow_item.manage")),
+    service: AccountingService = Depends(get_service),
+):
+    return service.create_cash_flow_item(payload)
+
+
+@router.put("/cash-flow-items/{id}", response_model=AccountingCashFlowItemRead)
+def update_cash_flow_item(
+    id: UUID,
+    payload: AccountingCashFlowItemUpdate,
+    _: User = Depends(require_permission("accounting.cash_flow_item.manage")),
+    service: AccountingService = Depends(get_service),
+):
+    return service.update_cash_flow_item(id, payload)
 
 
 @router.get("/cash-flow-operation-types", response_model=list[CashFlowOperationTypeRead])

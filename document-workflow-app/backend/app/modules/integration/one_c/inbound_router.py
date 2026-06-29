@@ -69,6 +69,19 @@ def import_expense_items(
 
 
 @router.post(
+    "/cash-flow-items/import",
+    response_model=ImportResult,
+    summary="Import cash flow items from 1C",
+)
+def import_cash_flow_items(
+    payload: ImportEnvelope,
+    current_user: User = Depends(require_permission("accounting.sync")),
+    service: OneCInboundService = Depends(get_service),
+):
+    return service.import_cash_flow_items(payload, current_user.id)
+
+
+@router.post(
     "/counterparty-contracts/import",
     response_model=ImportResult,
     summary="Import counterparty contracts from 1C",

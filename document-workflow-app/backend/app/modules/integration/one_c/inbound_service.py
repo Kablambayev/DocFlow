@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError
 from app.modules.accounting.models import (
+    AccountingCashFlowItem,
     AccountingCounterparty,
     AccountingCounterpartyContract,
     AccountingCurrency,
@@ -22,6 +23,7 @@ from app.modules.audit.service import AuditService
 from app.modules.integration.log_repository import IntegrationLogRepository
 from app.modules.integration.log_service import IntegrationLogService
 from app.modules.integration.one_c.schemas import (
+    CashFlowItemImportItem,
     CounterpartyContractImportItem,
     CounterpartyImportItem,
     CurrencyImportItem,
@@ -85,6 +87,17 @@ class OneCInboundService:
             audit_action="integration_1c_expense_items_imported",
             entity="expense_items",
             processor=self._process_expense_items,
+        )
+
+    def import_cash_flow_items(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
+        return self._execute_import(
+            operation_type="1c_import_cash_flow_items",
+            request_url="/api/v1/integration/1c/cash-flow-items/import",
+            payload=payload,
+            user_id=user_id,
+            audit_action="integration_1c_cash_flow_items_imported",
+            entity="cash_flow_items",
+            processor=self._process_cash_flow_items,
         )
 
     def import_counterparty_contracts(self, payload: ImportEnvelope, user_id: UUID) -> ImportResult:
@@ -315,6 +328,44 @@ class OneCInboundService:
                 existing.code = parsed.code
                 existing.name = parsed.name
                 existing.full_name = parsed.full_name
+                existing.is_active = parsed.is_active
+                existing.raw_data = parsed.raw_data
+                existing.synced_at = now
+                result.updated += 1
+
+    def _process_cash_flow_items(self, payload: ImportEnvelope, result: ImportResult) -> None:
+        now = datetime.now(timezone.utc)
+        for index, raw_item in enumerate(payload.items):
+            parsed = self._validate_item(index, raw_item, CashFlowItemImportItem, result)
+            if parsed is None:
+                continue
+
+            existing = self.db.scalar(
+                select(AccountingCashFlowItem).where(
+                    AccountingCashFlowItem.source_system == payload.source_system,
+                    AccountingCashFlowItem.external_id == parsed.external_id,
+                )
+            )
+            if existing is None:
+                self.db.add(
+                    AccountingCashFlowItem(
+                        source_system=payload.source_system,
+                        external_id=parsed.external_id,
+                        code=parsed.code,
+                        name=parsed.name,
+                        full_name=parsed.full_name,
+                        direction=parsed.direction,
+                        is_active=parsed.is_active,
+                        raw_data=parsed.raw_data,
+                        synced_at=now,
+                    )
+                )
+                result.created += 1
+            else:
+                existing.code = parsed.code
+                existing.name = parsed.name
+                existing.full_name = parsed.full_name
+                existing.direction = parsed.direction
                 existing.is_active = parsed.is_active
                 existing.raw_data = parsed.raw_data
                 existing.synced_at = now

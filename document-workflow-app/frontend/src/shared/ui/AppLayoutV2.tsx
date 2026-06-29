@@ -16,6 +16,7 @@ const menuPermissionsByKey: Record<string, { permission?: string; anyOf?: string
   "/integration/logs": { permission: "integration.log.read" },
   "/integration/1c/diagnostics": { permission: "integration_1c.diagnostics.read" },
   "/accounting": { permission: "accounting.read" },
+  "/cash-flow/mapping-rules": { permission: "cash_flow.mapping.read" },
   "/admin": { anyOf: ["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"] },
   "/admin/document-types": { permission: "document_type.read" },
   "/admin/routes": { permission: "approval_route.read" },
@@ -29,6 +30,7 @@ const devUserOptions = [
   { value: "ec42a60c-3ce6-42ca-892f-c8ac286d472f", label: "Author User <author@example.com>" },
   { value: "430fe9f5-f037-41fc-815e-abcf24e62eb5", label: "Approver User <approver@example.com>" },
   { value: "db277dc4-ecd2-471d-8529-88fb698ecf0d", label: "Accounting Admin <accounting_admin@example.com>" },
+  { value: "08c40803-c674-483c-b70a-09224b824310", label: "Technical Admin <technical_admin@example.com>" },
 ];
 
 type MenuItem = {

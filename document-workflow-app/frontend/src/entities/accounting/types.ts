@@ -8,6 +8,11 @@ export interface AccountingDictionaryItem {
   synced_at?: string | null;
 }
 
+export interface CashFlowItemDictionaryItem extends AccountingDictionaryItem {
+  external_id?: string | null;
+  direction: string;
+}
+
 export interface CounterpartyContractItem {
   id: string;
   organization_id: string;
@@ -39,6 +44,17 @@ export interface CashFlowOperationTypePayload {
   name: string;
   description?: string | null;
   sort_order?: number;
+}
+
+export interface CashFlowItemPayload {
+  external_id?: string | null;
+  code?: string | null;
+  name: string;
+  full_name?: string | null;
+  direction?: string;
+  is_active?: boolean;
+  source_system?: string;
+  raw_data?: Record<string, unknown>;
 }
 
 export interface ProjectPayload {
