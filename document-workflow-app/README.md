@@ -472,6 +472,32 @@ The registry reuses the existing Stage 9.2 send endpoint:
 
 In fake mode with `ONE_C_ENABLED=false`, send from treasury creates the same fake payment order as the document card and updates registry metrics after refetch.
 
+## Stage 10.1 Frontend Lint Cleanup And UI Smoke
+
+Stage 10.1 is a stabilization step after treasury delivery.
+
+Completed in code:
+
+- frontend lint now passes without errors;
+- `AuthContext` exports were split so Fast Refresh lint rules no longer fail;
+- auth permissions state is memoized to keep hook dependency checks stable;
+- document form helpers were moved out of `DynamicFormRenderer` so the component file no longer mixes helper exports with component export;
+- document card normalization import now comes from a dedicated helper module.
+
+Automated verification:
+
+- `cd frontend && npm.cmd run lint` -> passed;
+- `cd frontend && npm.cmd run build` -> passed;
+- `cd backend && python.exe -m alembic upgrade head` -> passed;
+- `cd backend && python.exe scripts/seed_dev.py` -> passed;
+- `cd backend && python.exe -B -c "import app.main"` -> passed;
+- `cd backend && python.exe -m pytest` -> `69 passed`.
+
+Known TODO left explicit:
+
+- manual browser UI smoke for the full `PaymentRequest -> approval -> treasury -> fake 1C` flow was not executed in this session;
+- Vite still reports the expected large chunk warning during production build.
+
 1. Submit a document as `author@example.com`.
 2. Switch to `approver@example.com`.
 3. Verify the notification badge and dropdown show a new approval task.

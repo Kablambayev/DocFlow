@@ -14,7 +14,8 @@ import { ApprovalTimelinePanel } from "../../shared/ui/ApprovalTimelinePanel";
 import { CommentsPanel } from "../../shared/ui/CommentsPanel";
 import { DocumentFilesPanel } from "../../shared/ui/DocumentFilesPanel";
 import { DocumentHistoryPanel } from "../../shared/ui/DocumentHistoryPanel";
-import { DynamicFormRenderer, normalizeDynamicInitialValues } from "../../shared/ui/DynamicFormRenderer";
+import { DynamicFormRenderer } from "../../shared/ui/DynamicFormRenderer";
+import { normalizeDynamicInitialValues } from "../../shared/ui/dynamicForm";
 
 const editableStatuses = ["Draft", "Withdrawn"];
 const apiError = (error: unknown, fallback: string) =>

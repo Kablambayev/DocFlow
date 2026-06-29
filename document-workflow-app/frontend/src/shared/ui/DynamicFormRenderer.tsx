@@ -112,14 +112,16 @@ const DictionaryField = ({ field, disabled }: { field: DynamicFieldSchema; disab
     params[dependency.param] = dependencies?.[dependency.field] ?? undefined;
   }
 
-  const queryEnabled = !isDisabled && (!dependsOn.length || dependsReady);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const query = useQuery({
     queryKey: ["dictionary", dictionaryName, params],
-    queryFn: () => loader(params as never),
-    enabled: queryEnabled,
+    queryFn: () => (loader ? loader(params as never) : Promise.resolve([])),
+    enabled: Boolean(loader) && !isDisabled && (!dependsOn.length || dependsReady),
   });
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
+    if (!loader) return;
     if (!dependsOn.length) return;
     const currentValue = form.getFieldValue(field.code);
     if (!dependsReady && currentValue) {
@@ -131,7 +133,7 @@ const DictionaryField = ({ field, disabled }: { field: DynamicFieldSchema; disab
     if (!exists) {
       form.setFieldValue(field.code, undefined);
     }
-  }, [dependsReady, field.code, form, query.data, valueField, dependsOn.length]);
+  }, [dependsReady, field.code, form, loader, query.data, valueField, dependsOn.length]);
 
   const options = (query.data ?? []).map((item) => ({
     value: String(getDictionaryValue(item, valueField)),
@@ -156,19 +158,6 @@ const DictionaryField = ({ field, disabled }: { field: DynamicFieldSchema; disab
       filterOption={(input, option) => String(option?.label ?? "").toLowerCase().includes(input.toLowerCase())}
     />
   );
-};
-
-export const normalizeDynamicInitialValues = (values: Record<string, unknown> = {}, schema: DynamicFormSchema) => {
-  const result: Record<string, unknown> = { ...values };
-  for (const section of schema.sections) {
-    for (const field of section.fields) {
-      const value = result[field.code];
-      if ((field.type === "date" || field.type === "datetime") && typeof value === "string") {
-        result[field.code] = dayjs(value);
-      }
-    }
-  }
-  return result;
 };
 
 export const DynamicFormRenderer = ({ schema, disabled, documentId, documentStatus }: DynamicFormRendererProps) => {

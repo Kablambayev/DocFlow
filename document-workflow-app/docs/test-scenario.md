@@ -485,6 +485,60 @@ UI smoke:
 10. Open the document card from the registry and verify the `1С` tab.
 11. Return to treasury and verify filters `CreatedIn1C` and `Failed`.
 
+## Stage 10.1 Frontend Lint Cleanup And UI Smoke Scenario
+
+### Automated checks
+
+Run:
+
+```bash
+cd frontend
+npm.cmd run lint
+npm.cmd run build
+
+cd ../backend
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+python.exe -B -c "import app.main"
+python.exe -m pytest
+```
+
+Expected:
+
+- frontend lint passes without errors;
+- frontend production build succeeds;
+- backend migrations and seed succeed;
+- backend test suite passes.
+
+### Scope of cleanup
+
+Verify:
+
+1. dev user switch still updates the active `X-User-Id`;
+2. `/me` and `/me/permissions` still refresh after user change;
+3. dictionary fields still render in create/document-card flows;
+4. `contract_id` still depends on `organization_id` and `counterparty_id`;
+5. changing organization or counterparty still clears an invalid selected contract.
+
+### Manual browser smoke
+
+Recommended smoke:
+
+1. Login as `author`.
+2. Create `PaymentRequest`.
+3. Select organization, counterparty, and contract.
+4. Change organization or counterparty and verify `contract_id` resets.
+5. Submit the document.
+6. Login as `approver` and approve the task.
+7. Login as `accounting_admin`.
+8. Open `Казначейство`.
+9. Send the approved request to fake 1C.
+10. Open the document card and verify the `1С` tab, history, and notifications.
+
+Known TODO:
+
+- the existing Vite large chunk warning is allowed and was not addressed in Stage 10.1.
+
 ### Timeline API
 
 ```text
@@ -1183,4 +1237,3 @@ npm run dev
 4. Verify status transitions in card:
 
 - Draft -> OnApproval -> Approved
-

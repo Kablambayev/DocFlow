@@ -1,29 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PropsWithChildren } from "react";
-import { createContext, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { apiClient, setUserIdHeader } from "../api/axios";
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  full_name: string;
-  is_active: boolean;
-}
-
-interface AuthContextValue {
-  currentUser: AuthUser | null;
-  currentUserId: string | null;
-  permissions: string[];
-  isLoading: boolean;
-  isAdmin: boolean;
-  setCurrentUserId: (userId: string | null) => void;
-  refreshAuth: () => Promise<void>;
-  hasPermission: (permission: string) => boolean;
-  hasAnyPermission: (permissions: string[]) => boolean;
-}
-
-export const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext, type AuthContextValue, type AuthUser } from "./auth-context";
 
 const DEFAULT_DEV_USER_ID = "ac9d2376-34a0-439f-b8fc-319418b9fb57";
 
@@ -75,7 +55,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     await Promise.all([meQuery.refetch(), permissionsQuery.refetch()]);
   }, [meQuery, permissionsQuery]);
 
-  const permissions = permissionsQuery.data ?? [];
+  const permissions = useMemo(() => permissionsQuery.data ?? [], [permissionsQuery.data]);
   const hasPermission = useCallback(
     (permission: string) => permissions.includes("admin.access") || permissions.includes(permission),
     [permissions],
