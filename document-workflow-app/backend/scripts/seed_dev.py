@@ -83,6 +83,7 @@ PERMISSIONS = [
     ("accounting.read", "Read accounting dictionaries"),
     ("accounting.manage", "Manage accounting local dictionaries"),
     ("accounting.sync", "Sync accounting external dictionaries"),
+    ("integration_1c.payment_request.send", "Send approved payment requests to 1C"),
 ]
 
 ROLE_PERMISSIONS = {
@@ -147,6 +148,7 @@ ROLE_PERMISSIONS = {
         "accounting.read",
         "accounting.manage",
         "accounting.sync",
+        "integration_1c.payment_request.send",
     ],
 }
 

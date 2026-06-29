@@ -318,6 +318,100 @@ Expected:
 - approve/reject decision comments appear as `approval` comments;
 - approval comments cannot be edited or deleted.
 
+## Stage 9.2 Outbound 1C Scenario
+
+Stage 9.2 adds outbound HTTP exchange `DocFlow -> 1C` for approved `PaymentRequest` documents.
+
+### Setup
+
+From `backend/`:
+
+```bash
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+python.exe -B -c "import app.main"
+python.exe -m pytest
+```
+
+From `frontend/`:
+
+```bash
+npm.cmd run build
+```
+
+### Settings
+
+Use these `.env` variables:
+
+```env
+ONE_C_BASE_URL=http://1c-server/base/hs/docflow
+ONE_C_PAYMENT_REQUEST_ENDPOINT=/payment-requests
+ONE_C_USERNAME=
+ONE_C_PASSWORD=
+ONE_C_TIMEOUT_SECONDS=30
+ONE_C_ENABLED=false
+```
+
+With `ONE_C_ENABLED=false`, DocFlow uses fake mode and does not call a real 1C endpoint.
+
+### Swagger Smoke
+
+1. Run backend and open `http://127.0.0.1:8000/docs`.
+2. Find an approved `PaymentRequest` document.
+3. Call:
+
+```text
+POST /api/v1/integration/1c/payment-requests/{approved_document_id}/send
+```
+
+4. Verify response includes:
+
+- `status = CreatedIn1C` in fake mode;
+- `one_c_enabled = false` in fake mode;
+- `payment_order.number = FAKE-000001` in fake mode.
+
+5. Call:
+
+```text
+GET /api/v1/integration/1c/payment-requests/{approved_document_id}/export
+```
+
+6. Verify saved export fields and payment order attributes.
+
+### Business Rule Checks
+
+Verify send is rejected for:
+
+- `Draft` `PaymentRequest`;
+- `OnApproval` `PaymentRequest`;
+- `Rejected` `PaymentRequest`;
+- non-`PaymentRequest` documents.
+
+Verify send succeeds for:
+
+- `Approved` `PaymentRequest`.
+
+### Idempotency Checks
+
+1. Send an approved `PaymentRequest` once.
+2. Send it again without `force=true`.
+3. Verify DocFlow returns `already_exported` and does not create a new export row.
+4. Send again with `force=true`.
+5. Verify the same export row is updated.
+
+### UI Smoke
+
+1. Run frontend and backend.
+2. Sign in with `admin` or `accounting_admin` dev user.
+3. Open an approved `PaymentRequest` card.
+4. Open the `1С` tab.
+5. Click `Отправить в 1С`.
+6. In fake mode verify the payment order card appears.
+7. Refresh the page and verify export data persists.
+8. Open `История` and verify the audit event is visible.
+9. Open notifications and verify success or failure notification is present.
+10. Open `Draft` or `OnApproval` document and verify send is unavailable.
+
 ### Timeline API
 
 ```text

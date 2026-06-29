@@ -259,6 +259,111 @@ Swagger smoke:
 
 UI smoke:
 
+## Stage 9.2 Outbound 1C Payment Orders
+
+DocFlow now supports outbound HTTP exchange for approved `PaymentRequest` documents:
+
+- `POST /api/v1/integration/1c/payment-requests/{document_id}/send`
+- `GET /api/v1/integration/1c/payment-requests/{document_id}/export`
+
+Business rules:
+
+- only `PaymentRequest` can be sent;
+- only `Approved` documents can be sent;
+- `Draft`, `OnApproval`, `Rejected`, `Withdrawn`, and `Archived` documents are rejected;
+- outbound payload includes only business fields, not workflow internals, comments, history, or files.
+
+DocFlow sends the payment request to 1C only as a basis for creating a payment order. There is no separate `PaymentRequest` object in 1C for this integration stage.
+
+Outbound payload uses dictionary mapping from internal UUIDs in `documents.data_json` to business identifiers expected by 1C:
+
+- 1C external IDs: organization, counterparty, contract, currency, expense item;
+- local accounting codes: cash flow operation type, project.
+
+Payload example:
+
+```json
+{
+  "request_id": "uuid документа DocFlow",
+  "request_number": "PAY-000001",
+  "request_date": "2026-06-26",
+  "organization_external_id": "ORG-001",
+  "counterparty_external_id": "CNT-001",
+  "contract_external_id": "CTR-ORG1-CNT1-142",
+  "currency_external_id": "CUR-KZT",
+  "expense_item_external_id": "EXP-002",
+  "cash_flow_operation_type_code": "supplier_payment",
+  "project_code": "MAIN",
+  "amount": 1500000,
+  "payment_purpose": "Оплата по договору",
+  "comment": null,
+  "author": {
+    "id": "uuid",
+    "email": "author@example.com",
+    "name": "Author User"
+  },
+  "approved_at": "2026-06-26T10:00:00+05:00"
+}
+```
+
+Supported 1C responses:
+
+- `created` -> export status `CreatedIn1C`;
+- `already_exists` -> export status `AlreadyExistsIn1C`;
+- `error` -> export status `Failed`.
+
+Idempotency:
+
+- DocFlow stores one export row per document in `payment_request_1c_exports`;
+- repeated send without `force=true` returns the existing successful export instead of sending again;
+- `request_id = document.id` is always sent so 1C can deduplicate payment orders too.
+
+Fake mode:
+
+- `ONE_C_ENABLED=false` disables the real HTTP call;
+- the backend returns a fake payment order and persists it as `CreatedIn1C`;
+- API responses include `one_c_enabled: false` so the caller can see the transport mode.
+
+New settings:
+
+```env
+ONE_C_BASE_URL=http://1c-server/base/hs/docflow
+ONE_C_PAYMENT_REQUEST_ENDPOINT=/payment-requests
+ONE_C_USERNAME=
+ONE_C_PASSWORD=
+ONE_C_TIMEOUT_SECONDS=30
+ONE_C_ENABLED=false
+```
+
+Permissions:
+
+- send: `integration_1c.payment_request.send`
+- export read: document visibility plus `document.read` or `accounting.read`
+
+Notifications and audit:
+
+- success notification: `integration_1c_payment_order_created`
+- failure notification: `integration_1c_payment_request_failed`
+- audit actions:
+  - `integration_1c_payment_request_send_started`
+  - `integration_1c_payment_request_created`
+  - `integration_1c_payment_request_already_exists`
+  - `integration_1c_payment_request_failed`
+
+Swagger smoke:
+
+1. Run backend and seed data.
+2. Open `http://127.0.0.1:8000/docs`.
+3. Send an approved `PaymentRequest` using admin or accounting_admin `X-User-Id`.
+4. Read export state using the `GET` export endpoint.
+
+UI smoke:
+
+1. Open an approved `PaymentRequest` card.
+2. Open the `1С` tab.
+3. Send the document to 1C or fake 1C.
+4. Refresh the page and verify payment order data, history event, and notifications.
+
 1. Submit a document as `author@example.com`.
 2. Switch to `approver@example.com`.
 3. Verify the notification badge and dropdown show a new approval task.

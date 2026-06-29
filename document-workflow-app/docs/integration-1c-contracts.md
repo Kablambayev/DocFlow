@@ -26,11 +26,13 @@ Flow: `1C -> DocFlow`
 - expense items
 - counterparty contracts
 
-### 2.2 Outbound (future Stage 9.2)
+### 2.2 Outbound (implemented in Stage 9.2)
 
 Flow: `DocFlow -> 1C`
 
-DocFlow will send only fully approved `PaymentRequest` to 1C so 1C can create or reuse a payment order.
+DocFlow sends only fully approved `PaymentRequest` to 1C so 1C can create or reuse a payment order.
+
+1C does not store a separate `PaymentRequest` business object in this scenario. The DocFlow document is used only as a basis for creating a payment order.
 
 DocFlow must not send workflow internals:
 
@@ -50,7 +52,8 @@ Base URL:
 Current auth mode:
 
 - `X-User-Id` header (dev auth)
-- user must have `accounting.sync` (or `admin.access`)
+- inbound import: `accounting.sync` (or `admin.access`)
+- outbound send: `integration_1c.payment_request.send` (or `admin.access`)
 
 ## 4. Inbound Import Endpoints
 
@@ -262,13 +265,44 @@ Repeated import of same payload does not create duplicates:
 4. expense_items
 5. counterparty_contracts
 
-## 11. Future Outbound Contract (Stage 9.2)
+## 11. Outbound Contract (Stage 9.2)
 
 ### 11.1 Trigger condition
 
 `document_type.code = PaymentRequest` and `document.approval_status = Approved`.
 
-### 11.2 Future request payload
+Also rejected for outbound:
+
+- `Draft`
+- `OnApproval`
+- `Rejected`
+- `Withdrawn`
+- `Archived`
+- any non-`PaymentRequest` document type
+
+### 11.2 What DocFlow sends to 1C
+
+DocFlow sends only business attributes:
+
+- request number/date/id;
+- mapped organization/counterparty/contract/currency/expense item identifiers;
+- local accounting codes for cash flow operation type and project;
+- amount, purpose, optional comment;
+- author info;
+- calculated `approved_at`.
+
+DocFlow does not send:
+
+- approval status metadata;
+- approval route;
+- approval tasks;
+- approval decisions;
+- workflow state;
+- comments timeline;
+- document history;
+- files.
+
+### 11.3 Request payload
 
 ```json
 {
@@ -294,7 +328,40 @@ Repeated import of same payload does not create duplicates:
 }
 ```
 
-### 11.3 Future responses from 1C
+Mapping source is `documents.data_json`:
+
+- `organization_id`
+- `counterparty_id`
+- `contract_id`
+- `currency_id`
+- `expense_item_id`
+- `cash_flow_operation_type_id`
+- `project_id`
+- `amount`
+- `payment_purpose` or current schema field `paymentPurpose`
+- `comment` if present
+
+Dictionary mapping:
+
+- internal UUIDs from `documents.data_json` are resolved to 1C `external_id` for organization, counterparty, contract, currency, and expense item;
+- local DocFlow accounting dictionaries use `code` for cash flow operation type and project.
+
+If mapping fails, DocFlow returns:
+
+```json
+{
+  "error": {
+    "code": "EXPORT_MAPPING_ERROR",
+    "message": "Cannot map PaymentRequest data to 1C payload",
+    "details": {
+      "field": "organization_id",
+      "reason": "Organization external_id not found"
+    }
+  }
+}
+```
+
+### 11.4 Responses from 1C
 
 Created:
 
@@ -328,6 +395,66 @@ Already exists:
   }
 }
 ```
+
+Error:
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Не найден договор контрагента",
+    "details": {
+      "contract_external_id": "CTR-ORG1-CNT1-142"
+    }
+  }
+}
+```
+
+### 11.5 Idempotency
+
+DocFlow stores one export row per document in `payment_request_1c_exports`.
+
+- repeated send without `force=true` returns the existing successful export;
+- `force=true` sends again and updates the same export row;
+- DocFlow always sends `request_id = document.id` so 1C can deduplicate payment order creation.
+
+### 11.6 Fake mode
+
+If `ONE_C_ENABLED=false`, DocFlow does not perform a real HTTP call.
+
+Instead it returns a fake `created` payload and persists the result as a successful export. API responses include `one_c_enabled: false`.
+
+### 11.7 Settings
+
+```env
+ONE_C_BASE_URL=http://1c-server/base/hs/docflow
+ONE_C_PAYMENT_REQUEST_ENDPOINT=/payment-requests
+ONE_C_USERNAME=
+ONE_C_PASSWORD=
+ONE_C_TIMEOUT_SECONDS=30
+ONE_C_ENABLED=false
+```
+
+Final transport URL:
+
+```text
+{ONE_C_BASE_URL}{ONE_C_PAYMENT_REQUEST_ENDPOINT}
+```
+
+### 11.8 UI and Swagger verification
+
+UI:
+
+1. Open an approved `PaymentRequest`.
+2. Open the `1С` tab in the document card.
+3. Send to 1C or fake 1C.
+4. Verify payment order data, timeline event, and notifications.
+
+Swagger:
+
+1. `POST /api/v1/integration/1c/payment-requests/{document_id}/send`
+2. `GET /api/v1/integration/1c/payment-requests/{document_id}/export`
 
 Error:
 

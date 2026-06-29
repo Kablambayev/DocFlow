@@ -23,6 +23,8 @@ class NotificationType(StrEnum):
     DOCUMENT_WITHDRAWN = "document_withdrawn"
     DOCUMENT_COMMENT_CREATED = "document_comment_created"
     DOCUMENT_FILE_UPLOADED = "document_file_uploaded"
+    INTEGRATION_1C_PAYMENT_ORDER_CREATED = "integration_1c_payment_order_created"
+    INTEGRATION_1C_PAYMENT_REQUEST_FAILED = "integration_1c_payment_request_failed"
 
 
 class Notification(UUIDPrimaryKeyMixin, Base):

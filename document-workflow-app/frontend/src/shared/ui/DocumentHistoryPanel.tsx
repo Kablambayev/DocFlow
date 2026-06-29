@@ -16,6 +16,10 @@ const typeColor: Record<string, string> = {
   document_comment_created: "blue",
   document_comment_updated: "gold",
   document_comment_deleted: "red",
+  integration_1c_payment_request_send_started: "gold",
+  integration_1c_payment_request_created: "green",
+  integration_1c_payment_request_already_exists: "blue",
+  integration_1c_payment_request_failed: "red",
 };
 
 interface DocumentHistoryPanelProps {

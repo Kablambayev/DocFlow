@@ -31,6 +31,8 @@ const iconByType: Record<string, ReactNode> = {
   document_comment_created: <MessageOutlined style={{ color: "#1677ff" }} />,
   document_file_uploaded: <PaperClipOutlined style={{ color: "#0a6e6e" }} />,
   document_withdrawn: <RollbackOutlined style={{ color: "#595959" }} />,
+  integration_1c_payment_order_created: <CheckCircleOutlined style={{ color: "#389e0d" }} />,
+  integration_1c_payment_request_failed: <CloseCircleOutlined style={{ color: "#cf1322" }} />,
 };
 
 const apiError = (error: unknown, fallback: string) =>

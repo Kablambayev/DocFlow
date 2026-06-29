@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     one_c_password: str = ""
     one_c_timeout_seconds: int = 30
     one_c_enabled: bool = False
+    one_c_payment_request_endpoint: str = "/payment-requests"
 
     @field_validator("debug", mode="before")
     @classmethod
