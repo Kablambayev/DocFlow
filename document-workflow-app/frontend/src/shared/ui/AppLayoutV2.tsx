@@ -14,6 +14,7 @@ const menuPermissionsByKey: Record<string, { permission?: string; anyOf?: string
   "/tasks": { anyOf: ["task.read", "document.approve"] },
   "/treasury/payment-requests": { permission: "treasury.payment_request.read" },
   "/integration/logs": { permission: "integration.log.read" },
+  "/integration/1c/diagnostics": { permission: "integration_1c.diagnostics.read" },
   "/accounting": { permission: "accounting.read" },
   "/admin": { anyOf: ["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"] },
   "/admin/document-types": { permission: "document_type.read" },

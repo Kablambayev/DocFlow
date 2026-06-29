@@ -35,3 +35,29 @@ export interface PaymentRequest1CSendResult {
   } | null;
   export?: PaymentRequest1CExport;
 }
+
+export interface OneCDiagnosticsSettings {
+  one_c_enabled: boolean;
+  base_url_configured: boolean;
+  base_url_preview?: string | null;
+  payment_request_endpoint: string;
+  health_endpoint: string;
+  timeout_seconds: number;
+  username_configured: boolean;
+  password_configured: boolean;
+  verify_ssl: boolean;
+}
+
+export interface OneCTestConnectionResult {
+  status: "ok" | "disabled" | "error" | "warning";
+  one_c_enabled: boolean;
+  base_url?: string | null;
+  health_endpoint?: string | null;
+  http_status?: number | null;
+  duration_ms?: number | null;
+  service?: string | null;
+  version?: string | null;
+  code?: string | null;
+  message?: string | null;
+  details?: Record<string, unknown> | null;
+}

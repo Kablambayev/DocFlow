@@ -748,6 +748,14 @@ Verification:
 - frontend `npm.cmd run lint` and `npm.cmd run build` pass;
 - Vite large chunk warning remains expected and is not part of Stage 11 scope.
 
+## Stage 12 — real 1C HTTP service readiness
+
+Stage 12 adds connection diagnostics without changing PaymentRequest, workflow, or inbound dictionary contracts. New settings are `ONE_C_HEALTH_ENDPOINT`, `ONE_C_CONNECTION_TEST_ENDPOINT`, and `ONE_C_VERIFY_SSL`; existing integration settings remain in use. Empty `ONE_C_BASE_URL` is accepted at startup and produces a controlled diagnostics error.
+
+Run `python.exe scripts/mock_1c_server.py --host 127.0.0.1 --port 8010`, enable real HTTP mode against the mock, then open `/integration/1c/diagnostics`. Every test is stored as `1c_test_connection`. See [HTTP examples](docs/1c-http-examples.md) and [contracts](docs/integration-1c-contracts.md).
+
+Known limitations: no scheduler retry, background worker, broker, bulk send, or Keycloak/OIDC. The live contract must be finalized with the 1C developer.
+
 ## Useful Checks
 
 Backend:

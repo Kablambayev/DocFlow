@@ -1,4 +1,4 @@
-import { AuditOutlined, FileTextOutlined, SettingOutlined, SolutionOutlined } from "@ant-design/icons";
+import { ApiOutlined, AuditOutlined, FileTextOutlined, SettingOutlined, SolutionOutlined } from "@ant-design/icons";
 import { createBrowserRouter } from "react-router-dom";
 
 import { AccountingDictionariesPage } from "../pages/accounting/AccountingDictionariesPage";
@@ -12,12 +12,14 @@ import { CreateDocumentV2Page } from "../pages/documents/CreateDocumentV2Page";
 import { DocumentCardV2Page } from "../pages/documents/DocumentCardV2Page";
 import { DocumentsV2Page } from "../pages/documents/DocumentsV2Page";
 import { IntegrationLogsPage } from "../pages/integration/IntegrationLogsPage";
+import { OneCDiagnosticsPage } from "../pages/integration/OneCDiagnosticsPage";
 import { MyTasksV2Page } from "../pages/tasks/MyTasksV2Page";
 import { TreasuryPaymentRequestsPage } from "../pages/treasury/TreasuryPaymentRequestsPage";
 import { RequirePermission } from "../shared/auth/RequirePermission";
 import { AppLayoutV2 } from "../shared/ui/AppLayoutV2";
 
 export const menuItems = [
+  { key: "/integration/1c/diagnostics", label: "Диагностика 1С", icon: <ApiOutlined />, permission: "integration_1c.diagnostics.read" },
   { key: "/documents", label: "Документы", icon: <FileTextOutlined /> },
   { key: "/tasks", label: "Мои задачи", icon: <SolutionOutlined /> },
   { key: "/treasury/payment-requests", label: "Казначейство", icon: <AuditOutlined /> },
@@ -41,6 +43,7 @@ export const router = createBrowserRouter([
       { path: "tasks", element: <RequirePermission anyOf={["task.read", "document.approve"]}><MyTasksV2Page /></RequirePermission> },
       { path: "treasury/payment-requests", element: <RequirePermission permission="treasury.payment_request.read"><TreasuryPaymentRequestsPage /></RequirePermission> },
       { path: "integration/logs", element: <RequirePermission permission="integration.log.read"><IntegrationLogsPage /></RequirePermission> },
+      { path: "integration/1c/diagnostics", element: <RequirePermission permission="integration_1c.diagnostics.read"><OneCDiagnosticsPage /></RequirePermission> },
       { path: "accounting", element: <RequirePermission permission="accounting.read"><AccountingDictionariesPage /></RequirePermission> },
       { path: "admin", element: <RequirePermission anyOf={["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"]}><AdminV2Page /></RequirePermission> },
       { path: "admin/document-types", element: <RequirePermission permission="document_type.read"><DocumentTypesAdminV2Page /></RequirePermission> },

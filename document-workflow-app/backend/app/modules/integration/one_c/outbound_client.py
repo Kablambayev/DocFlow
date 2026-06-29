@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+from time import perf_counter
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
@@ -20,6 +22,90 @@ class OneCOutboundClient:
         self.timeout_seconds = settings.one_c_timeout_seconds
         self.enabled = settings.one_c_enabled
         self.payment_request_endpoint = settings.one_c_payment_request_endpoint
+        self.health_endpoint = settings.one_c_health_endpoint
+        self.connection_test_endpoint = settings.one_c_connection_test_endpoint
+        self.verify_ssl = settings.one_c_verify_ssl
+
+    @staticmethod
+    def _safe_url(url: str) -> str:
+        try:
+            parts = urlsplit(url)
+            hostname = parts.hostname or ""
+            if parts.port:
+                hostname = f"{hostname}:{parts.port}"
+            query = urlencode([
+                (key, "***MASKED***" if any(secret in key.lower() for secret in ("password", "token", "secret", "key")) else value)
+                for key, value in parse_qsl(parts.query, keep_blank_values=True)
+            ])
+            return urlunsplit((parts.scheme, hostname, parts.path, query, ""))
+        except ValueError:
+            return ""
+
+    def _health_url(self) -> str:
+        endpoint = self.connection_test_endpoint or self.health_endpoint
+        return f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
+
+    def check_health(self, endpoint: str | None = None) -> dict[str, Any]:
+        selected_endpoint = endpoint or self.health_endpoint
+        url = f"{self.base_url.rstrip('/')}/{selected_endpoint.lstrip('/')}"
+        auth = (self.username, self.password) if self.username or self.password else None
+        with httpx.Client(timeout=self.timeout_seconds, verify=self.verify_ssl, auth=auth) as client:
+            response = client.get(url)
+        if response.status_code in {401, 403}:
+            return {
+                "status": "error", "code": "ONE_C_AUTH_ERROR",
+                "message": "1C service returned authentication error", "http_status": response.status_code,
+            }
+        if response.status_code >= 400:
+            return {
+                "status": "error", "code": "ONE_C_HTTP_ERROR",
+                "message": "1C service returned HTTP error", "http_status": response.status_code,
+            }
+        try:
+            body = response.json()
+        except ValueError:
+            return {
+                "status": "warning", "code": "ONE_C_HEALTH_NON_JSON_RESPONSE",
+                "message": "1C health endpoint returned non-JSON response", "http_status": response.status_code,
+            }
+        result: dict[str, Any] = {"status": "ok", "http_status": response.status_code}
+        if isinstance(body, dict):
+            result.update({key: body[key] for key in ("service", "version") if body.get(key) is not None})
+        return result
+
+    def test_connection(self) -> dict[str, Any]:
+        if not self.enabled:
+            return {
+                "status": "disabled", "one_c_enabled": False,
+                "message": "1C integration is disabled. Real HTTP calls are not performed.",
+            }
+        if not self.base_url.strip():
+            return {
+                "status": "error", "one_c_enabled": True, "code": "ONE_C_BASE_URL_NOT_CONFIGURED",
+                "message": "ONE_C_BASE_URL is not configured",
+            }
+        started_at = perf_counter()
+        common = {
+            "one_c_enabled": True,
+            "base_url": self._safe_url(self.base_url),
+            "health_endpoint": self.connection_test_endpoint or self.health_endpoint,
+        }
+        try:
+            result = self.check_health(self.connection_test_endpoint or self.health_endpoint)
+        except httpx.TimeoutException:
+            result = {
+                "status": "error", "code": "ONE_C_TIMEOUT",
+                "message": "1C service did not respond within timeout",
+                "details": {"timeout_seconds": self.timeout_seconds},
+            }
+        except httpx.HTTPError:
+            result = {
+                "status": "error", "code": "ONE_C_CONNECTION_ERROR",
+                "message": "Cannot connect to 1C service",
+            }
+        result.update(common)
+        result["duration_ms"] = int((perf_counter() - started_at) * 1000)
+        return result
 
     def send_payment_request(self, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url.rstrip('/')}{self.payment_request_endpoint}"
@@ -45,7 +131,10 @@ class OneCOutboundClient:
                 },
             }
         try:
-            response = httpx.post(url, json=payload, timeout=self.timeout_seconds, auth=auth)
+            request_kwargs = {"json": payload, "timeout": self.timeout_seconds, "auth": auth}
+            if not self.verify_ssl:
+                request_kwargs["verify"] = False
+            response = httpx.post(url, **request_kwargs)
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             logger.exception("1C service returned HTTP error")

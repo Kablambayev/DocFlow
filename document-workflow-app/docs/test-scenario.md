@@ -1317,3 +1317,16 @@ Verified in a real headless Edge browser:
 Smoke data can be refreshed idempotently through the inbound endpoints using external ids `smoke-org-001`, `smoke-cnt-001`, and `smoke-contract-001`. This avoids changing `seed_dev.py` when a test-polluted local database no longer includes the seed references in the first dictionary page.
 
 The integration diagnostics contour passed in the browser on an existing Approved PaymentRequest. Because the dev database was heavily populated by regression fixtures, a final clean single-document browser pass through create -> submit -> approve should still be repeated manually; backend workflow regression coverage passed. Remaining product limitations: fake 1C only; no scheduler/background retry, bulk export, WebSocket, broker, Keycloak/OIDC, or bundle splitting. The Ant Design 5 / React 19 compatibility warning and Vite large-chunk warning remain non-blocking.
+
+## 6. Stage 12 diagnostics smoke
+
+1. Run `python.exe scripts/mock_1c_server.py --host 127.0.0.1 --port 8010` from `backend`.
+2. Start DocFlow with `ONE_C_ENABLED=true`, `ONE_C_BASE_URL=http://127.0.0.1:8010`, health endpoint `/health`, and timeout `5`.
+3. Sign in as `accounting_admin`, open `/integration/1c/diagnostics`, and verify the settings cards.
+4. Run the test and expect `ok`, HTTP 200, mock service name, and version.
+5. Follow the journal link, open `1c_test_connection`, and verify URL and response payload.
+6. Send an Approved PaymentRequest and verify the mock order in its `1С` tab and outbound log.
+7. Repeat with `validation_error`, `http_500`, and `slow_timeout`; expect controlled failures.
+8. With `ONE_C_ENABLED=false`, expect `disabled` plus a `Skipped` log and no HTTP call.
+
+Commands are in `docs/1c-http-examples.md`.

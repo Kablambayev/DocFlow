@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     one_c_timeout_seconds: int = 30
     one_c_enabled: bool = False
     one_c_payment_request_endpoint: str = "/payment-requests"
+    one_c_health_endpoint: str = "/health"
+    one_c_connection_test_endpoint: str = "/health"
+    one_c_verify_ssl: bool = True
 
     @field_validator("debug", mode="before")
     @classmethod

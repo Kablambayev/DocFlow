@@ -84,6 +84,8 @@ PERMISSIONS = [
     ("accounting.manage", "Manage accounting local dictionaries"),
     ("accounting.sync", "Sync accounting external dictionaries"),
     ("integration_1c.payment_request.send", "Send approved payment requests to 1C"),
+    ("integration_1c.diagnostics.read", "Read 1C integration diagnostics"),
+    ("integration_1c.diagnostics.run", "Run 1C integration diagnostics"),
     ("integration.log.read", "Read integration operation logs"),
     ("integration.log.manage", "Manage integration operation logs"),
     ("treasury.payment_request.read", "Read treasury payment request registry"),
@@ -152,8 +154,16 @@ ROLE_PERMISSIONS = {
         "accounting.manage",
         "accounting.sync",
         "integration_1c.payment_request.send",
+        "integration_1c.diagnostics.read",
+        "integration_1c.diagnostics.run",
         "integration.log.read",
         "treasury.payment_request.read",
+    ],
+    "technical_admin": [
+        "integration_1c.diagnostics.read",
+        "integration_1c.diagnostics.run",
+        "integration.log.read",
+        "integration.log.manage",
     ],
 }
 
@@ -165,6 +175,7 @@ ROLE_NAMES = {
     "workflow_admin": "Workflow administrator",
     "user_admin": "User administrator",
     "accounting_admin": "Accounting administrator",
+    "technical_admin": "Technical administrator",
 }
 
 

@@ -1,5 +1,15 @@
 # DocFlow Stage 9 - 1C HTTP Integration Contracts
 
+## Stage 12 diagnostics contract
+
+- `GET /api/v1/integration/1c/diagnostics/settings` requires `integration_1c.diagnostics.read` and returns only safe flags, endpoints, timeout, SSL mode, and a credential-free URL preview.
+- `POST /api/v1/integration/1c/diagnostics/test-connection` requires `integration_1c.diagnostics.run`; real HTTP runs only when enabled.
+- Results: `ok`, `warning`, `disabled`, `error`. Codes: `ONE_C_BASE_URL_NOT_CONFIGURED`, `ONE_C_TIMEOUT`, `ONE_C_CONNECTION_ERROR`, `ONE_C_AUTH_ERROR`, `ONE_C_HTTP_ERROR`, `ONE_C_HEALTH_NON_JSON_RESPONSE`.
+- Each run creates an outbound `1c_test_connection` log: disabled=`Skipped`, success/warning=`Success`, error=`Failed`.
+- Basic Auth credentials and URL userinfo are never returned or logged.
+
+The mock provides `GET /health` and `POST /payment-requests`; see `docs/1c-http-examples.md`.
+
 ## 1. Architecture
 
 Stage 9 uses synchronous HTTP integration only.

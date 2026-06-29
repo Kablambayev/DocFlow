@@ -21,6 +21,7 @@ type FilterValues = {
 };
 
 const operationOptions = [
+  { value: "1c_test_connection", label: "Проверка подключения к 1С" },
   { value: "1c_import_organizations", label: "Импорт организаций" },
   { value: "1c_import_counterparties", label: "Импорт контрагентов" },
   { value: "1c_import_currencies", label: "Импорт валют" },
@@ -172,7 +173,7 @@ export const IntegrationLogsPage = () => {
     {
       title: "Документ",
       render: (_: unknown, row: IntegrationLogListItem) =>
-        row.document_id && row.document_number ? <Link to={`/documents/${row.document_id}`}>{row.document_number}</Link> : row.document_number ?? "-",
+        row.document_id && row.document_number ? <Link to={`/documents/${row.document_id}`}>{row.document_number}</Link> : row.document_number ?? "—",
     },
     {
       title: "HTTP",
