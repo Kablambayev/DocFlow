@@ -439,6 +439,52 @@ This stage validates that `accounting_admin` can work with approved foreign paym
 8. Verify payment order data, history event, and author notification.
 9. Verify foreign draft/on-approval/rejected requests are not visible in the list.
 
+## Stage 10 Treasury Workspace Scenario
+
+### Backend checks
+
+Run:
+
+```bash
+cd backend
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+python.exe -B -c "import app.main"
+python.exe -m pytest
+```
+
+Verify:
+
+1. `GET /api/v1/treasury/payment-requests` returns approved `PaymentRequest` only.
+2. `GET /api/v1/treasury/payment-requests/metrics` returns ready/exported/failed counts and sums.
+3. `export_status=not_exported` returns approved requests without export row.
+4. `export_status=CreatedIn1C` returns successfully exported requests.
+5. `export_status=Failed` returns failed exports.
+
+### Frontend checks
+
+Run:
+
+```bash
+cd frontend
+npm.cmd run build
+npm.cmd run dev -- --host 127.0.0.1 --port 5173
+```
+
+UI smoke:
+
+1. Log in as `author`.
+2. Create a `PaymentRequest` and submit it.
+3. Log in as `approver` and approve it.
+4. Log in as `accounting_admin`.
+5. Open `Казначейство`.
+6. Verify the document appears with status `Не отправлено`.
+7. Click `Отправить в 1С`.
+8. In fake mode verify the status becomes `Создано в 1С`.
+9. Verify metrics are refreshed.
+10. Open the document card from the registry and verify the `1С` tab.
+11. Return to treasury and verify filters `CreatedIn1C` and `Failed`.
+
 ### Timeline API
 
 ```text

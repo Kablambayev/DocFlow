@@ -12,6 +12,7 @@ const { Header, Sider, Content } = Layout;
 const menuPermissionsByKey: Record<string, { permission?: string; anyOf?: string[] }> = {
   "/documents": { permission: "document.read" },
   "/tasks": { anyOf: ["task.read", "document.approve"] },
+  "/treasury/payment-requests": { permission: "treasury.payment_request.read" },
   "/accounting": { permission: "accounting.read" },
   "/admin": { anyOf: ["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"] },
   "/admin/document-types": { permission: "document_type.read" },
@@ -25,6 +26,7 @@ const devUserOptions = [
   { value: "ac9d2376-34a0-439f-b8fc-319418b9fb57", label: "Admin User <admin@example.com>" },
   { value: "ec42a60c-3ce6-42ca-892f-c8ac286d472f", label: "Author User <author@example.com>" },
   { value: "430fe9f5-f037-41fc-815e-abcf24e62eb5", label: "Approver User <approver@example.com>" },
+  { value: "db277dc4-ecd2-471d-8529-88fb698ecf0d", label: "Accounting Admin <accounting_admin@example.com>" },
 ];
 
 type MenuItem = {
@@ -53,7 +55,7 @@ export const AppLayoutV2 = ({ menuItems }: AppLayoutProps) => {
       if (rule.anyOf) return hasAnyPermission(rule.anyOf);
       return true;
     })
-    .map(({ permission: _permission, anyOf: _anyOf, ...item }) => item);
+    .map(({ key, label, icon }) => ({ key, label, icon }));
   const userOptions = usersQuery.data?.length
     ? usersQuery.data.map((user) => ({ value: user.id, label: `${user.full_name} <${user.email}>` }))
     : devUserOptions;

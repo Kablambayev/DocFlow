@@ -15,6 +15,7 @@ from app.modules.integration.one_c.inbound_router import router as integration_o
 from app.modules.integration.one_c.outbound_router import router as integration_one_c_outbound_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.roles.router import router as roles_router
+from app.modules.treasury.router import router as treasury_router
 from app.modules.users.router import router as users_router
 from app.modules.workflow.router import router as workflow_router
 
@@ -54,3 +55,4 @@ fastapi_app.include_router(roles_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(accounting_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(integration_one_c_router, prefix=settings.api_v1_prefix)
 fastapi_app.include_router(integration_one_c_outbound_router, prefix=settings.api_v1_prefix)
+fastapi_app.include_router(treasury_router, prefix=settings.api_v1_prefix)

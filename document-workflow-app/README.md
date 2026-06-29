@@ -400,6 +400,78 @@ UI verification:
 3. Open the card and verify the `1С` tab is available.
 4. Verify foreign draft/on-approval/rejected documents are still not visible.
 
+## Stage 10 Treasury Workspace
+
+Stage 10 adds a dedicated treasury workspace for approved payment requests.
+
+Purpose:
+
+- show which approved requests are ready to send to 1C;
+- show which were already exported;
+- show failures and created payment orders;
+- allow quick open of the document card;
+- allow single send or force resend from one registry screen.
+
+Backend endpoints:
+
+- `GET /api/v1/treasury/payment-requests`
+- `GET /api/v1/treasury/payment-requests/metrics`
+
+Permissions:
+
+- page and registry read: `treasury.payment_request.read`
+- send to 1C from the registry: `integration_1c.payment_request.send`
+
+Registry returns only `PaymentRequest` documents and defaults to `approval_status = Approved`.
+
+Supported filters:
+
+- `export_status`
+- `approval_status`
+- `organization_id`
+- `counterparty_id`
+- `project_id`
+- `currency_id`
+- `date_from`, `date_to`
+- `amount_from`, `amount_to`
+- `search`
+- `limit`, `offset`
+- `sort_by`, `sort_order`
+
+`export_status` supports:
+
+- `not_exported`
+- `Pending`
+- `Sent`
+- `CreatedIn1C`
+- `AlreadyExistsIn1C`
+- `Failed`
+
+Metrics meaning:
+
+- `ready_to_send` = approved payment requests without export row;
+- `created_in_1c` = export status `CreatedIn1C`;
+- `already_exists_in_1c` = export status `AlreadyExistsIn1C`;
+- `failed` = export status `Failed`;
+- amount metrics use `documents.data_json.amount`.
+
+Frontend adds a `Казначейство` menu item and the page `/treasury/payment-requests`.
+
+The page shows:
+
+- metric cards;
+- registry filters;
+- status tags;
+- send/retry actions;
+- direct navigation to `/documents/{document_id}`;
+- error modal for failed exports.
+
+The registry reuses the existing Stage 9.2 send endpoint:
+
+- `POST /api/v1/integration/1c/payment-requests/{document_id}/send`
+
+In fake mode with `ONE_C_ENABLED=false`, send from treasury creates the same fake payment order as the document card and updates registry metrics after refetch.
+
 1. Submit a document as `author@example.com`.
 2. Switch to `approver@example.com`.
 3. Verify the notification badge and dropdown show a new approval task.

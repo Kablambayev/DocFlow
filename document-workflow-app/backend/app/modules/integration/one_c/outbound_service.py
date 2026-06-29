@@ -11,6 +11,7 @@ from app.core.security import get_user_permission_codes
 from app.modules.accounting.repository import AccountingRepository
 from app.modules.audit.repository import AuditRepository
 from app.modules.audit.service import AuditService
+from app.modules.documents.approval_dates import resolve_document_approved_at
 from app.modules.documents.models import DocumentApprovalStatus
 from app.modules.document_types.models import DocumentType
 from app.modules.integration.one_c.outbound_client import OneCOutboundClient
@@ -215,11 +216,7 @@ class OneCOutboundService:
         if author is None:
             self._raise_mapping_error(field="author", reason="Document author not found")
 
-        approved_at = (
-            self.repository.get_approval_process_finished_at(document.id)
-            or self.repository.get_last_approval_decision_at(document.id)
-            or document.updated_at
-        )
+        approved_at = resolve_document_approved_at(self.repository.db, document.id, document.updated_at)
 
         return {
             "request_id": str(document.id),

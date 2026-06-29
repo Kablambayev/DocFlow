@@ -506,6 +506,89 @@ Expected behavior:
 5. Verify the `1С` tab is available and send works.
 6. Verify unrelated foreign drafts and other document types do not appear.
 
+## 13. Stage 10 - Treasury Workspace
+
+### 13.1 Purpose
+
+Treasury users need a dedicated register of approved payment requests instead of opening every document card manually.
+
+The treasury workspace shows:
+
+- approved payment requests ready for export;
+- already exported requests;
+- requests with failed export;
+- created payment orders returned from 1C.
+
+### 13.2 Endpoints
+
+- `GET /api/v1/treasury/payment-requests`
+- `GET /api/v1/treasury/payment-requests/metrics`
+
+The treasury page still uses the existing outbound send endpoint:
+
+- `POST /api/v1/integration/1c/payment-requests/{document_id}/send`
+
+### 13.3 Permissions
+
+- registry read: `treasury.payment_request.read`
+- send from registry: `integration_1c.payment_request.send`
+- accounting dictionaries for filter lists: `accounting.read`
+
+### 13.4 Registry filters
+
+Supported query params:
+
+- `export_status`
+- `approval_status`
+- `organization_id`
+- `counterparty_id`
+- `project_id`
+- `currency_id`
+- `date_from`
+- `date_to`
+- `amount_from`
+- `amount_to`
+- `search`
+- `limit`
+- `offset`
+- `sort_by`
+- `sort_order`
+
+Supported `export_status` values:
+
+- `not_exported`
+- `Pending`
+- `Sent`
+- `CreatedIn1C`
+- `AlreadyExistsIn1C`
+- `Failed`
+
+### 13.5 Metrics
+
+Metrics are calculated only for approved `PaymentRequest` documents:
+
+- `ready_to_send`: approved requests without export row;
+- `created_in_1c`: export status `CreatedIn1C`;
+- `already_exists_in_1c`: export status `AlreadyExistsIn1C`;
+- `failed`: export status `Failed`.
+
+Amounts are calculated from `documents.data_json.amount`.
+
+### 13.6 UI behavior
+
+The frontend treasury page:
+
+- shows metric cards;
+- shows a registry table;
+- maps missing export row to `Не отправлено`;
+- allows `Отправить в 1С` for `not_exported` and `Failed`;
+- allows `Повторить` with `force=true` for `CreatedIn1C` and `AlreadyExistsIn1C`;
+- shows an error modal for failed exports.
+
+### 13.7 Fake mode
+
+If `ONE_C_ENABLED=false`, treasury send uses the same fake mode as the document card and produces a fake payment order in registry and metrics after refetch.
+
 Error:
 
 ```json
