@@ -14,6 +14,8 @@ import { DocumentCardV2Page } from "../pages/documents/DocumentCardV2Page";
 import { DocumentsV2Page } from "../pages/documents/DocumentsV2Page";
 import { IntegrationLogsPage } from "../pages/integration/IntegrationLogsPage";
 import { OneCDiagnosticsPage } from "../pages/integration/OneCDiagnosticsPage";
+import { PaymentRegisterDetailPage } from "../pages/payment-registers/PaymentRegisterDetailPage";
+import { PaymentRegistersPage } from "../pages/payment-registers/PaymentRegistersPage";
 import { MyTasksV2Page } from "../pages/tasks/MyTasksV2Page";
 import { TreasuryPaymentRequestsPage } from "../pages/treasury/TreasuryPaymentRequestsPage";
 import { RequirePermission } from "../shared/auth/RequirePermission";
@@ -24,6 +26,7 @@ export const menuItems = [
   { key: "/documents", label: "Документы", icon: <FileTextOutlined /> },
   { key: "/tasks", label: "Мои задачи", icon: <SolutionOutlined /> },
   { key: "/treasury/payment-requests", label: "Казначейство", icon: <AuditOutlined /> },
+  { key: "/payment-registers", label: "Реестры оплат", icon: <AuditOutlined />, permission: "payment_register.read" },
   { key: "/accounting", label: "УпрУчет", icon: <AuditOutlined /> },
   { key: "/cash-flow/mapping-rules", label: "Сопоставление БДДС", icon: <AuditOutlined />, permission: "cash_flow.mapping.read" },
   { key: "/admin", label: "Администрирование", icon: <SettingOutlined /> },
@@ -44,6 +47,8 @@ export const router = createBrowserRouter([
       { path: "documents/:id", element: <RequirePermission anyOf={["document.read", "integration_1c.payment_request.send"]}><DocumentCardV2Page /></RequirePermission> },
       { path: "tasks", element: <RequirePermission anyOf={["task.read", "document.approve"]}><MyTasksV2Page /></RequirePermission> },
       { path: "treasury/payment-requests", element: <RequirePermission permission="treasury.payment_request.read"><TreasuryPaymentRequestsPage /></RequirePermission> },
+      { path: "payment-registers", element: <RequirePermission permission="payment_register.read"><PaymentRegistersPage /></RequirePermission> },
+      { path: "payment-registers/:id", element: <RequirePermission permission="payment_register.read"><PaymentRegisterDetailPage /></RequirePermission> },
       { path: "integration/logs", element: <RequirePermission permission="integration.log.read"><IntegrationLogsPage /></RequirePermission> },
       { path: "integration/1c/diagnostics", element: <RequirePermission permission="integration_1c.diagnostics.read"><OneCDiagnosticsPage /></RequirePermission> },
       { path: "accounting", element: <RequirePermission permission="accounting.read"><AccountingDictionariesPage /></RequirePermission> },

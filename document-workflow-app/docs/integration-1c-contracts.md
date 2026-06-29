@@ -829,3 +829,36 @@ Default outgoing sample JSON for rule testing:
   "cash_flow_item": { "external_id": "dds-supplier-payment" }
 }
 ```
+
+## 14. Stage 14 - Payment Register outbound contract
+
+Stage 14 keeps the existing single-document outbound contract intact and builds a grouped register flow around it.
+
+Register API:
+
+- `GET /api/v1/payment-registers`
+- `POST /api/v1/payment-registers`
+- `GET /api/v1/payment-registers/{id}`
+- `PUT /api/v1/payment-registers/{id}`
+- `DELETE /api/v1/payment-registers/{id}`
+- `GET /api/v1/payment-registers/available-payment-requests`
+- `POST /api/v1/payment-registers/{id}/rows`
+- `DELETE /api/v1/payment-registers/{id}/rows/{row_id}`
+- `POST /api/v1/payment-registers/{id}/mark-ready`
+- `POST /api/v1/payment-registers/{id}/send-to-1c`
+- `POST /api/v1/payment-registers/{id}/cancel`
+
+Rules:
+
+- only approved `PaymentRequest` documents can be added;
+- successful exports `CreatedIn1C` and `AlreadyExistsIn1C` are excluded from availability;
+- failed exports are returned only with `include_failed_exports=true`;
+- one payment request cannot belong to more than one active register;
+- register send reuses the existing PaymentRequest -> 1C export service and updates `payment_request_1c_exports`;
+- register-level integration log type is `1c_export_payment_register`.
+
+Send semantics:
+
+- allowed from `ReadyToSend`, `PartiallySent`, and `Failed`;
+- already successful rows are skipped unless `force=true`;
+- final register status becomes `Sent`, `PartiallySent`, or `Failed` based on row results.

@@ -1362,3 +1362,34 @@ Session result:
 - backend automated checks passed;
 - frontend lint/build passed;
 - manual browser smoke for Stage 13 was not executed in this session.
+
+## 8. Stage 14 - Payment Register smoke
+
+Backend smoke:
+1. `cd backend`
+2. `python.exe -m alembic upgrade head`
+3. `python.exe scripts/seed_dev.py`
+4. `python.exe -m pytest tests/test_payment_registers.py`
+
+Frontend smoke:
+1. `cd frontend`
+2. `npm.cmd run lint`
+3. `npm.cmd run build`
+
+Recommended browser smoke:
+1. Sign in as `accounting_admin`.
+2. Open `Реестры оплат`.
+3. Create a new register.
+4. Add at least one approved payment request.
+5. Verify the row is visible with amount, counterparty, and export status.
+6. Click `Готов к отправке`.
+7. Click `Отправить в 1С`.
+8. In fake mode verify row export status becomes `Создано в 1С`.
+9. Verify register status becomes `Отправлен`.
+10. Open `Журнал обмена` and check operation type `1c_export_payment_register`.
+
+Session result:
+- migration `20260629_0010_payment_registers` applied successfully;
+- backend tests `tests/test_payment_registers.py` passed;
+- frontend lint/build passed;
+- manual browser smoke for Stage 14 was not executed in this session.

@@ -824,3 +824,53 @@ Completed allocation requires:
 - `source_document_date`
 
 If any of these are missing, the mapping engine sets `allocation_status = NeedsEnrichment`.
+
+## Stage 14 - Payment Register
+
+Stage 14 adds a separate payment-register workflow on top of the existing Treasury registry and the existing `payment_request_1c_exports` mechanism.
+
+Business flow:
+
+- Approved `PaymentRequest`
+- `Payment Register`
+- send register to `1С`
+- 1C payment-order data stored per row and in the single-document export table
+
+Implemented:
+
+- backend module `payment_registers` with CRUD, row management, status transitions, and `/api/v1/payment-registers`;
+- tables `payment_registers` and `payment_register_rows`;
+- permissions `payment_register.read`, `payment_register.manage`, `payment_register.send`;
+- duplicate protection for active registers;
+- available-payment-requests selector with optional failed-export inclusion;
+- register-level audit trail and integration log `1c_export_payment_register`;
+- frontend pages `/payment-registers` and `/payment-registers/:id`;
+- flat menu item `Реестры оплат`.
+
+Allowed register statuses:
+
+- `Draft`
+- `ReadyToSend`
+- `Sending`
+- `PartiallySent`
+- `Sent`
+- `Failed`
+- `Cancelled`
+
+Quick verification:
+
+```bash
+cd backend
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+python.exe -m pytest tests/test_payment_registers.py
+
+cd ../frontend
+npm.cmd run lint
+npm.cmd run build
+```
+
+See also:
+
+- [payment-registers.md](docs/payment-registers.md)
+- [integration-1c-contracts.md](docs/integration-1c-contracts.md)

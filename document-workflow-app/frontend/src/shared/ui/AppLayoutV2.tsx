@@ -13,6 +13,7 @@ const menuPermissionsByKey: Record<string, { permission?: string; anyOf?: string
   "/documents": { permission: "document.read" },
   "/tasks": { anyOf: ["task.read", "document.approve"] },
   "/treasury/payment-requests": { permission: "treasury.payment_request.read" },
+  "/payment-registers": { permission: "payment_register.read" },
   "/integration/logs": { permission: "integration.log.read" },
   "/integration/1c/diagnostics": { permission: "integration_1c.diagnostics.read" },
   "/accounting": { permission: "accounting.read" },
