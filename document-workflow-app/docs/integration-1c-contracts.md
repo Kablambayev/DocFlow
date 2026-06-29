@@ -727,3 +727,21 @@ Inbound imports are not retried through the log API. Unsupported retry returns:
   }
 }
 ```
+
+## 15. Stage 11.1 diagnostics and deep links
+
+The list endpoint supports direct document filtering:
+
+```http
+GET /api/v1/integration/logs?document_id={document_id}
+```
+
+Only operations whose `document_id` equals the supplied UUID are returned. The frontend uses this contract for the Treasury row action:
+
+```text
+/integration/logs?document_id={document_id}
+```
+
+The journal also initializes `direction`, `operation_type`, and `status` from query parameters. These are diagnostics/navigation additions only; inbound and outbound 1C payload contracts are unchanged.
+
+An inbound item with an empty counterparty `name` is rejected at item level with `VALIDATION_ERROR`. Other valid items in the same batch are processed and the operation log status is `PartialSuccess`. Sensitive values in both valid and rejected raw items continue to be recursively masked.

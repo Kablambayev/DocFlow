@@ -136,6 +136,16 @@ def test_outbound_log_created_fake_mode_and_detail_masks_headers(client, db, use
     assert detail_body["request_headers"]["Authorization"] == "***MASKED***"
     assert detail_body["request_payload"]["request_id"] == document["id"]
 
+    filtered = client.get(
+        "/api/v1/integration/logs",
+        params={"document_id": document["id"]},
+        headers=_accounting_admin_headers(db),
+    )
+    assert filtered.status_code == 200, filtered.text
+    filtered_body = filtered.json()
+    assert filtered_body["total"] >= 1
+    assert all(item["document_id"] == document["id"] for item in filtered_body["items"])
+
 
 def test_outbound_failed_logs_for_1c_error_and_transport_errors(client, db, users, seed_refs, monkeypatch):
     monkeypatch.setattr(settings, "one_c_enabled", True)

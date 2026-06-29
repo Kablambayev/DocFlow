@@ -22,11 +22,11 @@ export interface IntegrationLogDetail extends IntegrationLogListItem {
   entity_id?: string | null;
   request_url?: string | null;
   request_method?: string | null;
-  request_headers: Record<string, unknown>;
-  request_payload: Record<string, unknown>;
-  response_headers: Record<string, unknown>;
-  response_payload: Record<string, unknown>;
-  error_details: Record<string, unknown>;
+  request_headers: Record<string, unknown> | null;
+  request_payload: Record<string, unknown> | null;
+  response_headers: Record<string, unknown> | null;
+  response_payload: Record<string, unknown> | null;
+  error_details: Record<string, unknown> | null;
   updated_at?: string | null;
 }
 

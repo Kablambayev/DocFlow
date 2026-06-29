@@ -73,8 +73,8 @@ export const CreateDocumentV2Page = () => {
           <Form.Item name="number" label="Номер" rules={[{ required: true }]}><Input style={{ width: 180 }} placeholder="PAY-000001" /></Form.Item>
           <Form.Item name="document_date" label="Дата документа" rules={[{ required: true }]} initialValue={dayjs()}><DatePicker showTime style={{ width: 220 }} /></Form.Item>
           <Form.Item name="title" label="Заголовок" rules={[{ required: true }]}><Input style={{ width: 360 }} /></Form.Item>
-          <Form.Item name="organization_id" label="Organization ID"><Input style={{ width: 260 }} /></Form.Item>
-          <Form.Item name="department_id" label="Department ID"><Input style={{ width: 260 }} /></Form.Item>
+          {!dynamicFieldCodes.has("organization_id") ? <Form.Item name="organization_id" label="Organization ID"><Input style={{ width: 260 }} /></Form.Item> : null}
+          {!dynamicFieldCodes.has("department_id") ? <Form.Item name="department_id" label="Department ID"><Input style={{ width: 260 }} /></Form.Item> : null}
         </Space>
         {schema ? <DynamicFormRenderer schema={schema} /> : <Alert type="info" showIcon message="Выберите тип документа с опубликованной версией формы." />}
         <Collapse style={{ marginTop: 16 }} items={[{ key: "debug", label: "Debug schema", children: <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(schema ?? {}, null, 2)}</pre> }]} />

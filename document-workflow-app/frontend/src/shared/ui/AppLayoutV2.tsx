@@ -55,7 +55,11 @@ export const AppLayoutV2 = ({ menuItems }: AppLayoutProps) => {
   const visibleMenuItems = sourceMenuItems
     .filter((item) => {
       if (!currentUserId || isLoading) return true;
-      const rule = { ...menuPermissionsByKey[item.key], permission: item.permission, anyOf: item.anyOf };
+      const configuredRule = menuPermissionsByKey[item.key];
+      const rule = {
+        permission: item.permission ?? configuredRule?.permission,
+        anyOf: item.anyOf ?? configuredRule?.anyOf,
+      };
       if (rule.permission) return hasPermission(rule.permission);
       if (rule.anyOf) return hasAnyPermission(rule.anyOf);
       return true;

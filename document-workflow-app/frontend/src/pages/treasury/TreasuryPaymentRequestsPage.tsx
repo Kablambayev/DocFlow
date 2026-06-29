@@ -54,6 +54,7 @@ const metricCurrency = (value: number) => new Intl.NumberFormat("ru-RU").format(
 export const TreasuryPaymentRequestsPage = () => {
   const { hasPermission } = useAuth();
   const [form] = Form.useForm<FilterValues>();
+  const [modal, modalContextHolder] = Modal.useModal();
   const [filters, setFilters] = useState<TreasuryPaymentRequestQueryParams>({
     approval_status: "Approved",
     limit: 50,
@@ -63,6 +64,7 @@ export const TreasuryPaymentRequestsPage = () => {
   });
   const [errorRow, setErrorRow] = useState<TreasuryPaymentRequest | null>(null);
   const canSend = hasPermission("integration_1c.payment_request.send");
+  const canReadIntegrationLogs = hasPermission("integration.log.read");
 
   const organizationsQuery = useQuery({ queryKey: ["accounting", "organizations", "treasury-filter"], queryFn: () => getOrganizations({ is_active: true, limit: 200 }) });
   const counterpartiesQuery = useQuery({ queryKey: ["accounting", "counterparties", "treasury-filter"], queryFn: () => getCounterparties({ is_active: true, limit: 200 }) });
@@ -121,7 +123,7 @@ export const TreasuryPaymentRequestsPage = () => {
 
   const triggerSend = (row: TreasuryPaymentRequest, force: boolean) => {
     if (force) {
-      Modal.confirm({
+      modal.confirm({
         title: "Повторить отправку в 1С?",
         content: "Будет выполнена принудительная повторная отправка с force=true.",
         okText: "Повторить",
@@ -162,6 +164,9 @@ export const TreasuryPaymentRequestsPage = () => {
           return (
             <Space wrap>
               <Button size="small"><Link to={`/documents/${row.document_id}`}>Открыть</Link></Button>
+              {canReadIntegrationLogs ? (
+                <Button size="small"><Link to={`/integration/logs?document_id=${encodeURIComponent(row.document_id)}`}>Журнал</Link></Button>
+              ) : null}
               {canSend && ["not_exported", "Failed"].includes(status) ? (
                 <Button size="small" type="primary" loading={sendMutation.isPending} onClick={() => triggerSend(row, false)}>
                   Отправить в 1С
@@ -185,6 +190,7 @@ export const TreasuryPaymentRequestsPage = () => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      {modalContextHolder}
       <div>
         <Typography.Title level={4} style={{ margin: 0 }}>Казначейство</Typography.Title>
         <Typography.Text type="secondary">Реестр согласованных заявок на оплату и отправки в 1С</Typography.Text>

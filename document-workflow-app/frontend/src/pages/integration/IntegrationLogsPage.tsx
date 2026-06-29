@@ -4,7 +4,7 @@ import { Alert, Button, Card, Col, DatePicker, Descriptions, Drawer, Form, Input
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { getIntegrationLogDetail, getIntegrationLogs, retryIntegrationLog } from "../../entities/integration-log";
 import type { IntegrationLogDetail, IntegrationLogListItem, IntegrationLogQueryParams } from "../../entities/integration-log";
@@ -55,17 +55,30 @@ const apiError = (error: unknown, fallback: string) =>
   (error as Error)?.message ??
   fallback;
 
-const prettyJson = (value: Record<string, unknown>) => JSON.stringify(value ?? {}, null, 2);
+const prettyJson = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
 
-export const IntegrationLogsPage = () => {
-  const { hasPermission } = useAuth();
-  const [form] = Form.useForm<FilterValues>();
-  const [filters, setFilters] = useState<IntegrationLogQueryParams>({
+const directionValues = new Set(["Inbound", "Outbound"]);
+
+const readInitialFilters = (searchParams: URLSearchParams): IntegrationLogQueryParams => {
+  const direction = searchParams.get("direction");
+  return {
+    document_id: searchParams.get("document_id") || undefined,
+    direction: direction && directionValues.has(direction) ? (direction as "Inbound" | "Outbound") : undefined,
+    operation_type: searchParams.get("operation_type") || undefined,
+    status: searchParams.get("status") || undefined,
     limit: 50,
     offset: 0,
     sort_by: "created_at",
     sort_order: "desc",
-  });
+  };
+};
+
+export const IntegrationLogsPage = () => {
+  const { hasPermission } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [form] = Form.useForm<FilterValues>();
+  const [modal, modalContextHolder] = Modal.useModal();
+  const [filters, setFilters] = useState<IntegrationLogQueryParams>(() => readInitialFilters(searchParams));
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const canRetry = hasPermission("integration_1c.payment_request.send");
 
@@ -106,6 +119,7 @@ export const IntegrationLogsPage = () => {
 
   const resetFilters = () => {
     form.resetFields();
+    setSearchParams({});
     setFilters({
       limit: 50,
       offset: 0,
@@ -115,7 +129,7 @@ export const IntegrationLogsPage = () => {
   };
 
   const triggerRetry = (log: IntegrationLogListItem) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Повторить отправку в 1С?",
       content: "Будет вызвана принудительная повторная отправка PaymentRequest с force=true.",
       okText: "Повторить",
@@ -199,7 +213,7 @@ export const IntegrationLogsPage = () => {
     },
   ];
 
-  const renderJsonBlock = (value: Record<string, unknown>) => (
+  const renderJsonBlock = (value: unknown) => (
     <pre
       style={{
         margin: 0,
@@ -207,6 +221,7 @@ export const IntegrationLogsPage = () => {
         borderRadius: 8,
         background: "#f6f8fa",
         overflowX: "auto",
+        maxWidth: "100%",
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
       }}
@@ -217,6 +232,7 @@ export const IntegrationLogsPage = () => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      {modalContextHolder}
       <div>
         <Typography.Title level={4} style={{ margin: 0 }}>
           Журнал обмена с 1С
@@ -228,8 +244,27 @@ export const IntegrationLogsPage = () => {
         <Alert type="error" showIcon message={apiError(logsQuery.error, "Не удалось загрузить журнал обмена")} />
       ) : null}
 
+      {filters.document_id ? (
+        <Alert
+          type="info"
+          showIcon
+          message="Журнал отфильтрован по документу"
+          description={<Typography.Text copyable>{filters.document_id}</Typography.Text>}
+          action={<Button onClick={resetFilters}>Сбросить фильтр</Button>}
+        />
+      ) : null}
+
       <Card>
-        <Form form={form} layout="vertical" onFinish={applyFilters}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{
+            direction: filters.direction,
+            operation_type: filters.operation_type,
+            status: filters.status,
+          }}
+          onFinish={applyFilters}
+        >
           <Row gutter={[16, 8]}>
             <Col xs={24} md={8} lg={6}>
               <Form.Item name="direction" label="Направление">
@@ -283,7 +318,7 @@ export const IntegrationLogsPage = () => {
         />
       </Card>
 
-      <Drawer title="Детали операции интеграции" width={720} open={Boolean(selectedLogId)} onClose={() => setSelectedLogId(null)} destroyOnHidden>
+      <Drawer title="Детали операции интеграции" width={720} styles={{ body: { overflowX: "hidden" } }} open={Boolean(selectedLogId)} onClose={() => setSelectedLogId(null)} destroyOnHidden>
         {detailQuery.isError ? <Alert type="error" showIcon message={apiError(detailQuery.error, "Не удалось загрузить детали")} /> : null}
         {selectedLog ? (
           <Space direction="vertical" size={16} style={{ width: "100%" }}>

@@ -26,6 +26,7 @@ const apiError = (error: unknown, fallback: string) =>
 export const DocumentCardV2Page = () => {
   const { id } = useParams();
   const [form] = Form.useForm();
+  const [modal, modalContextHolder] = Modal.useModal();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
   const documentQuery = useQuery({ queryKey: ["document", id], queryFn: () => getDocument(id ?? ""), enabled: Boolean(id) });
@@ -44,13 +45,14 @@ export const DocumentCardV2Page = () => {
   const canEdit = document ? editableStatuses.includes(document.approval_status) : false;
   const canWithdraw = document?.approval_status === "OnApproval";
   const canSendTo1C = hasPermission("integration_1c.payment_request.send");
-  const isPaymentRequest = documentTypeQuery.data?.code === "PaymentRequest";
+  const isKnownPaymentRequest = documentTypeQuery.data?.code === "PaymentRequest";
 
   const exportQuery = useQuery({
     queryKey: ["document-1c-export", id],
     queryFn: () => getPaymentRequest1CExport(id ?? ""),
-    enabled: Boolean(id) && isPaymentRequest,
+    enabled: Boolean(id) && (isKnownPaymentRequest || canSendTo1C),
   });
+  const isPaymentRequest = isKnownPaymentRequest || (canSendTo1C && exportQuery.isSuccess);
 
   useEffect(() => {
     if (document && schema) {
@@ -123,7 +125,7 @@ export const DocumentCardV2Page = () => {
 
   const triggerSendTo1C = (force: boolean) => {
     if (force) {
-      Modal.confirm({
+      modal.confirm({
         title: "Повторить отправку в 1С?",
         content: "Будет выполнена принудительная повторная отправка с force=true.",
         okText: "Повторить",
@@ -264,6 +266,7 @@ export const DocumentCardV2Page = () => {
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      {modalContextHolder}
       {documentQuery.isError ? <Alert type="error" showIcon message={apiError(documentQuery.error, "Ошибка загрузки документа")} /> : null}
       <Card title={`Документ ${document.number}`}>
         <Descriptions bordered column={1}>

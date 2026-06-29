@@ -1292,3 +1292,28 @@ npm run dev
 4. Verify status transitions in card:
 
 - Draft -> OnApproval -> Approved
+
+## 5. Stage 11.1 — browser smoke and integration diagnostics hardening
+
+Environment used:
+
+- frontend: `http://127.0.0.1:5173`, API base `http://127.0.0.1:8000/api/v1`;
+- backend: `ONE_C_ENABLED=false`;
+- users: seeded `admin`, `author`, `approver`, and `accounting_admin` via `X-User-Id`.
+
+Verified in a real headless Edge browser:
+
+1. RBAC menus: admin sees all sections; author/approver do not see Treasury or the integration journal; approver sees My Tasks; accounting admin sees Management Accounting, Treasury, and the journal.
+2. PaymentRequest form renders all accounting fields. Smoke reproduced and fixed duplicate `organization_id` controls and stale contract dependency rendering.
+3. Treasury renders Approved PaymentRequests, metrics, export status, and the per-row `Журнал` action.
+4. Fake export changes the Treasury row to `Создано в 1С` and stores `FAKE-*` payment-order data.
+5. The document card exposes the `1С` tab to accounting admin and shows status, number, date, amount, currency, and external id.
+6. `/integration/logs?document_id={id}` retains the query, displays an active filter, and returns only the selected document's logs.
+7. Inbound organization and counterparty logs, `PartialSuccess`, outbound export, detail drawer, request/response JSON, fake-mode flags, idempotency key, and document link are visible.
+8. Sensitive `password` and `authorization` values are displayed as `***MASKED***`.
+9. Retry opens a confirm modal and calls the outbound force-send endpoint; inbound retry remains unavailable.
+10. Large payloads wrap/scroll inside the drawer and nullable JSON renders as `{}`.
+
+Smoke data can be refreshed idempotently through the inbound endpoints using external ids `smoke-org-001`, `smoke-cnt-001`, and `smoke-contract-001`. This avoids changing `seed_dev.py` when a test-polluted local database no longer includes the seed references in the first dictionary page.
+
+The integration diagnostics contour passed in the browser on an existing Approved PaymentRequest. Because the dev database was heavily populated by regression fixtures, a final clean single-document browser pass through create -> submit -> approve should still be repeated manually; backend workflow regression coverage passed. Remaining product limitations: fake 1C only; no scheduler/background retry, bulk export, WebSocket, broker, Keycloak/OIDC, or bundle splitting. The Ant Design 5 / React 19 compatibility warning and Vite large-chunk warning remain non-blocking.

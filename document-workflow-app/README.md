@@ -726,6 +726,22 @@ Frontend additions:
 - detail drawer with request, response, error, and technical data;
 - retry action in UI for supported outbound logs.
 
+## Stage 11.1 Browser Smoke and Integration Diagnostics Hardening
+
+Stage 11.1 stabilizes the Stage 11 browser flow without changing 1C business contracts:
+
+- Treasury rows link to `/integration/logs?document_id={document_id}` for users with `integration.log.read`;
+- the journal initializes `document_id`, `direction`, `operation_type`, and `status` filters from the URL;
+- the active document filter is visible and can be reset;
+- detail JSON tolerates `null`, wraps long values, and cannot stretch the drawer horizontally;
+- React 19 confirm dialogs use the Ant Design modal context for reliable retry/resend confirmation;
+- the PaymentRequest 1C tab is visible to `accounting_admin` through the permitted export endpoint;
+- RBAC menu rules no longer lose configured permissions when a menu item has no inline rule;
+- empty counterparty names produce item-level `VALIDATION_ERROR` and a `PartialSuccess` log;
+- PaymentRequest dictionary dependencies are rerendered when organization/counterparty values change.
+
+Smoke verification and remaining limitations are recorded in `docs/test-scenario.md`. Fake mode remains the default (`ONE_C_ENABLED=false`); real 1C, scheduled retry, workers, WebSocket, and bundle splitting remain out of scope.
+
 Verification:
 
 - backend `python.exe -m pytest` includes `test_integration_operation_logs.py`;

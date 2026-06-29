@@ -175,6 +175,34 @@ def test_counterparties_import_create_and_update(client, db):
     assert item.name == "Counterparty One Updated"
 
 
+def test_counterparties_import_empty_name_is_partial_success(client, db):
+    response = client.post(
+        "/api/v1/integration/1c/counterparties/import",
+        json={
+            "source_system": "1C",
+            "items": [
+                {
+                    "external_id": f"cp-valid-{uuid4().hex[:8]}",
+                    "code": f"CP-{uuid4().hex[:4]}",
+                    "name": "Valid Counterparty",
+                },
+                {
+                    "external_id": f"cp-invalid-{uuid4().hex[:8]}",
+                    "code": f"CP-{uuid4().hex[:4]}",
+                    "name": "",
+                },
+            ],
+        },
+        headers=_accounting_admin_headers(db),
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["created"] == 1
+    assert body["skipped"] == 1
+    assert body["errors"][0]["code"] == "VALIDATION_ERROR"
+
+
 def test_currencies_import_create_and_conflict_error(client, db):
     headers = _accounting_admin_headers(db)
     external_id = f"cur-intg-{uuid4().hex[:8]}"

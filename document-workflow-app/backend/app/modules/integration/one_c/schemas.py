@@ -41,7 +41,7 @@ class OrganizationImportItem(BaseModel):
 
 class CounterpartyImportItem(BaseModel):
     external_id: str
-    name: str
+    name: str = Field(min_length=1)
     code: str | None = None
     full_name: str | None = None
     bin_iin: str | None = None

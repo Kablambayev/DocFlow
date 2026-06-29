@@ -95,7 +95,7 @@ const DictionaryField = ({ field, disabled }: { field: DynamicFieldSchema; disab
   const valueField = settings.valueField ?? "id";
   const labelField = settings.labelField ?? "name";
   const dependsOn = settings.dependsOn ?? [];
-  const dependencies = Form.useWatch([], form) as Record<string, unknown> | undefined;
+  const dependencies = form.getFieldsValue(true) as Record<string, unknown>;
   const dependsReady = dependsOn.every((dependency) => Boolean(dependencies?.[dependency.field]));
   const isContractDictionary = dictionaryName === "counterparty_contracts";
 
@@ -168,22 +168,31 @@ export const DynamicFormRenderer = ({ schema, disabled, documentId, documentStat
       {sections.map((section) => (
         <div key={section.code} style={{ marginBottom: 20 }}>
           <Typography.Title level={5}>{section.name}</Typography.Title>
-          {[...section.fields].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((field) => (
-            <Form.Item
-              key={field.code}
-              name={field.code}
-              label={field.name}
-              valuePropName={field.type === "boolean" ? "checked" : "value"}
-              normalize={(value) => (dayjs.isDayjs(value) ? value.toISOString() : value)}
-              rules={field.required ? [{ required: true, message: `Поле ${field.name} обязательно` }] : undefined}
-            >
-              {field.type === "dictionary" ? (
-                <DictionaryField field={field} disabled={disabled} />
-              ) : (
-                renderField(field, disabled, documentId, documentStatus)
-              )}
-            </Form.Item>
-          ))}
+          {[...section.fields].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((field) => {
+            const renderItem = () => (
+              <Form.Item
+                key={field.code}
+                name={field.code}
+                label={field.name}
+                valuePropName={field.type === "boolean" ? "checked" : "value"}
+                normalize={(value) => (dayjs.isDayjs(value) ? value.toISOString() : value)}
+                rules={field.required ? [{ required: true, message: `Поле ${field.name} обязательно` }] : undefined}
+              >
+                {field.type === "dictionary" ? (
+                  <DictionaryField field={field} disabled={disabled} />
+                ) : (
+                  renderField(field, disabled, documentId, documentStatus)
+                )}
+              </Form.Item>
+            );
+            if (field.type !== "dictionary" || !field.settings?.dependsOn?.length) return renderItem();
+            const dependencyFields = field.settings.dependsOn.map((dependency) => dependency.field);
+            return (
+              <Form.Item key={`${field.code}-dependencies`} noStyle shouldUpdate={(previous, current) => dependencyFields.some((code) => previous[code] !== current[code])}>
+                {renderItem}
+              </Form.Item>
+            );
+          })}
         </div>
       ))}
     </>
