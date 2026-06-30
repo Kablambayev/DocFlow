@@ -257,6 +257,70 @@ Frontend:
 - page `/cash-flow/allocations`
 - filters, metrics, detail drawer, manual enrichment, and status actions
 
+## Stage 16 BDDS Report Backend
+
+Stage 16 adds backend API for the BDDS cash flow report.
+
+Report source:
+
+- only `CashFlowAllocation` documents are used;
+- only allocations with `allocation_status = Completed` can enter totals;
+- documents with invalid or incomplete fields are excluded from totals and returned through diagnostics.
+
+Fields used for aggregation:
+
+- `source_document_date`
+- `cash_flow_direction`
+- `organization_id`
+- `project_id`
+- `cash_flow_item_id`
+- `cash_flow_operation_type_id`
+- `currency_id`
+- `amount`
+
+Rules:
+
+- `Inflow` contributes to `inflow_total`
+- `Outflow` contributes to `outflow_total`
+- `net_cash_flow = inflow_total - outflow_total`
+- currencies are never mixed into one grand total without currency breakdown
+
+Endpoints:
+
+- `GET /api/v1/cash-flow/bdds-report/summary`
+- `GET /api/v1/cash-flow/bdds-report/by-items`
+- `GET /api/v1/cash-flow/bdds-report/by-projects`
+- `GET /api/v1/cash-flow/bdds-report/by-organizations`
+- `GET /api/v1/cash-flow/bdds-report/by-periods`
+- `GET /api/v1/cash-flow/bdds-report/diagnostics`
+
+Permission:
+
+- `cash_flow.report.read`
+
+Filters:
+
+- `date_from`, `date_to`
+- `organization_id`
+- `project_id`
+- `cash_flow_item_id`
+- `cash_flow_operation_type_id`
+- `currency_id`
+- `group_period` for period grouping: `day`, `week`, `month`, `quarter`, `year`
+
+Diagnostics currently return:
+
+- `needs_enrichment`
+- `ignored`
+- `missing_direction`
+- `missing_date`
+- `missing_amount`
+- `missing_cash_flow_item`
+- `missing_currency`
+- `source_changed`
+
+Stage 16.1 will add the frontend report page on top of this API.
+
 DocFlow now creates in-app notifications synchronously from existing backend services. Email, Telegram, WebSocket, push notifications, background workers, Kafka, Keycloak, and OAuth2/OIDC are intentionally not part of this stage.
 
 API endpoints:

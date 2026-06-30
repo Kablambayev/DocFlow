@@ -136,3 +136,88 @@ What remains for future stages:
 - mass operations and more advanced operator UX;
 - final BDDS reporting forms and report filters;
 - report export and analytical drill-down.
+
+## Stage 16 — BDDS report backend
+
+Stage 16 adds the backend API that builds the BDDS report from `CashFlowAllocation`.
+
+Data source:
+
+- `document_type.code = CashFlowAllocation`
+- only allocations with `allocation_status = Completed` may enter totals
+
+Why only `Completed` allocations are used:
+
+- `NeedsEnrichment` still lacks confirmed analytics;
+- `Ignored` is intentionally excluded from management reporting;
+- `Draft` is not an operationally confirmed allocation yet.
+
+Fields required for inclusion in totals:
+
+- `source_document_date`
+- `cash_flow_direction` in `Inflow` / `Outflow`
+- `amount` as numeric and not equal to zero
+- `currency_id`
+- `cash_flow_item_id`
+
+Aggregation logic:
+
+- `Inflow` increases `inflow_total`
+- `Outflow` increases `outflow_total`
+- `net_cash_flow = inflow_total - outflow_total`
+
+Currencies are not mixed:
+
+- if `currency_id` is passed, the report is calculated only for that currency;
+- if `currency_id` is omitted, totals are returned separately by currency;
+- Stage 16 does not perform FX conversion.
+
+Endpoints:
+
+- `GET /api/v1/cash-flow/bdds-report/summary`
+- `GET /api/v1/cash-flow/bdds-report/by-items`
+- `GET /api/v1/cash-flow/bdds-report/by-projects`
+- `GET /api/v1/cash-flow/bdds-report/by-organizations`
+- `GET /api/v1/cash-flow/bdds-report/by-periods`
+- `GET /api/v1/cash-flow/bdds-report/diagnostics`
+
+Common filters:
+
+- `date_from`
+- `date_to`
+- `organization_id`
+- `project_id`
+- `cash_flow_item_id`
+- `cash_flow_operation_type_id`
+- `currency_id`
+
+Period grouping:
+
+- `day`
+- `week` (Monday to Sunday)
+- `month`
+- `quarter`
+- `year`
+
+Diagnostics types:
+
+- `needs_enrichment`
+- `ignored`
+- `missing_direction`
+- `missing_date`
+- `missing_amount`
+- `missing_cash_flow_item`
+- `missing_currency`
+- `source_changed`
+
+Swagger smoke:
+
+1. Run backend and open `http://127.0.0.1:8000/docs`.
+2. Import or prepare several `CashFlowAllocation` documents.
+3. Ensure some allocations are `Completed`.
+4. Call all BDDS report endpoints with `X-User-Id` of `accounting_admin` or `admin`.
+5. Verify inflow/outflow totals, grouping behavior, currency separation, and diagnostics.
+
+Next stage:
+
+- Stage 16.1 will add the frontend report page and operator UX for working with this API.

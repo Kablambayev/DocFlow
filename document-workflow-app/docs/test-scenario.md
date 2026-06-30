@@ -324,6 +324,86 @@ Backend tests cover:
 - complete/ignore/reopen flows;
 - metrics endpoint.
 
+## Stage 16 BDDS Report Backend Scenario
+
+Stage 16 adds only the backend API for the BDDS report.
+
+### Setup
+
+From `backend/`:
+
+```bash
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+python.exe -B -c "import app.main"
+python.exe -m pytest tests/test_bdds_report.py -q
+```
+
+### Permissions
+
+Use a user with:
+
+- `cash_flow.report.read`
+
+Seed grants it to:
+
+- `admin`
+- `accounting_admin`
+
+### Swagger Smoke
+
+1. Run backend:
+
+```bash
+cd backend
+python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+2. Open `http://127.0.0.1:8000/docs`.
+3. Import several 1C cash flow documents through `POST /api/v1/integration/1c/cash-flow-documents/import`.
+4. Ensure at least:
+
+- one `Completed` inflow;
+- one `Completed` outflow;
+- different cash flow items;
+- different projects;
+- different organizations;
+- at least two currencies;
+- one `NeedsEnrichment`;
+- one allocation with `source_changed = true`.
+
+5. Call:
+
+- `GET /api/v1/cash-flow/bdds-report/summary`
+- `GET /api/v1/cash-flow/bdds-report/by-items`
+- `GET /api/v1/cash-flow/bdds-report/by-projects`
+- `GET /api/v1/cash-flow/bdds-report/by-organizations`
+- `GET /api/v1/cash-flow/bdds-report/by-periods`
+- `GET /api/v1/cash-flow/bdds-report/diagnostics`
+
+6. Verify:
+
+- `Inflow` entered `inflow_total`;
+- `Outflow` entered `outflow_total`;
+- `net_cash_flow = inflow_total - outflow_total`;
+- currencies are separated;
+- `NeedsEnrichment` does not enter totals and appears in diagnostics;
+- `Ignored` does not enter totals and appears in diagnostics;
+- invalid completed allocations appear in diagnostics;
+- `source_changed` appears in diagnostics.
+
+### Automated Coverage
+
+`backend/tests/test_bdds_report.py` covers:
+
+- auth and permission checks;
+- period validation and invalid `group_period`;
+- summary totals and diagnostics counters;
+- currency separation;
+- grouping by items, projects, organizations, and periods;
+- filters by organization, project, item, operation type, currency, and date range;
+- diagnostics types, filtering, and pagination.
+
 ### API Scenario
 
 1. Open or create a visible document.
