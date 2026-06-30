@@ -321,6 +321,55 @@ Diagnostics currently return:
 
 Stage 16.1 will add the frontend report page on top of this API.
 
+## Stage 16.1 BDDS Report Frontend
+
+Stage 16.1 adds the frontend page for the BDDS report at:
+
+- `/cash-flow/bdds-report`
+
+Menu access:
+
+- `Отчет БДДС`
+- permission required: `cash_flow.report.read`
+
+Available filters:
+
+- period
+- organization
+- project
+- cash flow item
+- cash flow operation type
+- currency
+- grouping period
+
+Available tabs:
+
+- currency summary
+- by cash flow items
+- by projects
+- by organizations
+- by periods
+- diagnostics
+
+How to read the page:
+
+- summary cards show inflow, outflow, net cash flow, allocations count, and diagnostics counters;
+- if currency is selected, totals are shown directly from summary;
+- if currency is not selected, currencies are not mixed and the page shows a per-currency breakdown instead.
+
+Diagnostics:
+
+- shows problematic allocations returned by the backend;
+- supports filtering by diagnostic type;
+- `Открыть разноску` leads to `/cash-flow/allocations`.
+
+Current limitations remain:
+
+- no Excel export;
+- no PDF export;
+- no plan/fact;
+- no forecast.
+
 DocFlow now creates in-app notifications synchronously from existing backend services. Email, Telegram, WebSocket, push notifications, background workers, Kafka, Keycloak, and OAuth2/OIDC are intentionally not part of this stage.
 
 API endpoints:

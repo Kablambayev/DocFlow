@@ -19,6 +19,7 @@ const menuPermissionsByKey: Record<string, { permission?: string; anyOf?: string
   "/accounting": { permission: "accounting.read" },
   "/cash-flow/allocations": { permission: "cash_flow.allocation.read" },
   "/cash-flow/mapping-rules": { permission: "cash_flow.mapping.read" },
+  "/cash-flow/bdds-report": { permission: "cash_flow.report.read" },
   "/admin": { anyOf: ["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"] },
   "/admin/document-types": { permission: "document_type.read" },
   "/admin/routes": { permission: "approval_route.read" },

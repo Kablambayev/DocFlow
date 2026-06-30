@@ -221,3 +221,64 @@ Swagger smoke:
 Next stage:
 
 - Stage 16.1 will add the frontend report page and operator UX for working with this API.
+
+## Stage 16.1 — Frontend report
+
+Stage 16.1 adds the frontend page on top of the Stage 16 backend API.
+
+Route:
+
+- `/cash-flow/bdds-report`
+
+Menu:
+
+- `Отчет БДДС`
+
+Permission:
+
+- `cash_flow.report.read`
+
+Top-level filters:
+
+- `Период`
+- `Организация`
+- `Проект`
+- `Статья ДДС`
+- `Вид операции ДС`
+- `Валюта`
+- `Период группировки`
+
+Tabs:
+
+- `Сводка по валютам`
+- `По статьям ДДС`
+- `По проектам`
+- `По организациям`
+- `По периодам`
+- `Диагностика`
+
+How to read summary:
+
+- if one currency is selected, summary cards show inflow, outflow, and net cash flow directly;
+- if currency is not selected, the page warns that multiple currencies are present and shows the breakdown by currency;
+- currencies are never mixed into one number.
+
+How to read groupings:
+
+- item grouping shows article, code, direction, currency, totals, and allocation count;
+- project grouping shows project, currency, totals, and allocation count;
+- organization grouping shows organization, currency, totals, and allocation count;
+- period grouping shows `period_start — period_end`, currency, totals, and allocation count.
+
+How to use diagnostics:
+
+- the diagnostics tab shows `needs_enrichment`, `ignored`, missing fields, and `source_changed`;
+- a separate in-tab filter narrows the diagnostics type;
+- `Открыть разноску` navigates to `/cash-flow/allocations`.
+
+Current limitations:
+
+- no Excel export;
+- no PDF export;
+- no plan/fact;
+- no forecast.

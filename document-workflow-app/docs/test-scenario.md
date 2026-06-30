@@ -404,6 +404,62 @@ python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 - filters by organization, project, item, operation type, currency, and date range;
 - diagnostics types, filtering, and pagination.
 
+## Stage 16.1 BDDS Report Frontend Scenario
+
+Stage 16.1 adds the frontend page for the existing BDDS report API.
+
+### Checks
+
+From `frontend/`:
+
+```bash
+npm.cmd run lint
+npm.cmd run build
+```
+
+From `backend/`:
+
+```bash
+python.exe -m pytest
+```
+
+### Manual Smoke
+
+1. Run backend:
+
+```bash
+cd backend
+python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+2. Run frontend:
+
+```bash
+cd frontend
+npm.cmd run dev -- --host 127.0.0.1 --port 5173
+```
+
+3. Sign in as `accounting_admin`.
+4. Open `BDDS -> Отчет БДДС` or navigate to `/cash-flow/bdds-report`.
+5. Select a period with completed allocations and click `Сформировать`.
+6. Verify summary cards:
+
+- inflow
+- outflow
+- net cash flow
+- allocations count
+- needs enrichment
+- ignored
+- invalid completed
+
+7. Open `Сводка по валютам` and verify currencies are separated.
+8. Open `По статьям ДДС` and verify grouping by cash flow items.
+9. Open `По проектам` and verify `Без проекта` appears for null project values.
+10. Open `По организациям`.
+11. Open `По периодам` and switch grouping period between day, week, month, quarter, and year.
+12. Open `Диагностика`, filter by a specific diagnostic type, and verify rows update.
+13. Click `Открыть разноску` and verify navigation to `/cash-flow/allocations` works without errors.
+
 ### API Scenario
 
 1. Open or create a visible document.
