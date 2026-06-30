@@ -218,6 +218,45 @@ The `История` tab aggregates audit events and comments. The `Соглас
 
 ## Stage 7.1 In-App Notifications
 
+## Stage 15 Cash Flow Allocation Import And Registry
+
+Stage 15 imports 1C cash flow documents into DocFlow `CashFlowAllocation` documents and adds a registry UI for enrichment and control.
+
+Implemented backend endpoints:
+
+- `POST /api/v1/integration/1c/cash-flow-documents/import`
+- `GET /api/v1/cash-flow/allocations`
+- `GET /api/v1/cash-flow/allocations/metrics`
+- `GET /api/v1/cash-flow/allocations/{document_id}`
+- `PUT /api/v1/cash-flow/allocations/{document_id}`
+- `POST /api/v1/cash-flow/allocations/{document_id}/complete`
+- `POST /api/v1/cash-flow/allocations/{document_id}/ignore`
+- `POST /api/v1/cash-flow/allocations/{document_id}/reopen`
+
+Permissions:
+
+- import: `accounting.sync`
+- registry read/detail: `cash_flow.allocation.read`
+- update/status actions: `cash_flow.allocation.manage`
+
+Supported 1C source document types:
+
+- inflow: `PaymentOrderIncoming`, `CashReceiptOrder`, `MoneyReceiptOrder`
+- outflow: `PaymentOrderOutgoing`, `CashExpenseOrder`, `MoneyExpenseOrder`
+
+Behavior:
+
+- import is idempotent by `source_system + source_document_type_1c + source_document_external_id`;
+- Stage 13 mapping rules are reused automatically;
+- manual analytics are preserved on reimport for already enriched documents;
+- if a completed or ignored source changes materially, `source_changed = true` is raised for operator review.
+
+Frontend:
+
+- menu item `Разноска БДДС`
+- page `/cash-flow/allocations`
+- filters, metrics, detail drawer, manual enrichment, and status actions
+
 DocFlow now creates in-app notifications synchronously from existing backend services. Email, Telegram, WebSocket, push notifications, background workers, Kafka, Keycloak, and OAuth2/OIDC are intentionally not part of this stage.
 
 API endpoints:

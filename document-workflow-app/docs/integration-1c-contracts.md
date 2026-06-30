@@ -72,6 +72,7 @@ Current auth mode:
 - `POST /api/v1/integration/1c/currencies/import`
 - `POST /api/v1/integration/1c/expense-items/import`
 - `POST /api/v1/integration/1c/counterparty-contracts/import`
+- `POST /api/v1/integration/1c/cash-flow-documents/import`
 
 ## 5. Request Envelope
 
@@ -257,6 +258,69 @@ Example behavior:
 - `errors` contains per-item details
 
 ## 9. Idempotency
+
+Cash flow document import also uses idempotent upsert behavior, but its identity key is composite:
+
+- `source_system`
+- `source_document_type_1c`
+- `source_document_external_id`
+
+Reimport updates the existing `CashFlowAllocation` instead of creating a duplicate.
+
+## 10. Cash Flow Documents Import
+
+Stage 15 adds import of 1C money movement documents into DocFlow `CashFlowAllocation`.
+
+Supported normalized types:
+
+- inflow: `PaymentOrderIncoming`, `CashReceiptOrder`, `MoneyReceiptOrder`
+- outflow: `PaymentOrderOutgoing`, `CashExpenseOrder`, `MoneyExpenseOrder`
+
+Request envelope:
+
+```json
+{
+  "source_system": "1C",
+  "items": [
+    {
+      "document_type": "PaymentOrderOutgoing",
+      "external_id": "1c-doc-001",
+      "number": "000001",
+      "date": "2026-06-29",
+      "organization": { "external_id": "ORG-001" },
+      "counterparty": { "external_id": "CNT-001" },
+      "contract": { "external_id": "CTR-001" },
+      "currency": { "external_id": "CUR-KZT" },
+      "amount": 1500000,
+      "payment_purpose": "Оплата поставщику",
+      "raw_data": {}
+    }
+  ]
+}
+```
+
+Response shape follows the standard import contract:
+
+```json
+{
+  "status": "completed",
+  "source_system": "1C",
+  "entity": "cash_flow_documents",
+  "received": 1,
+  "created": 1,
+  "updated": 0,
+  "skipped": 0,
+  "errors": []
+}
+```
+
+Extra rules:
+
+- batch size is limited to 1000 items;
+- mapping rules from Stage 13 are applied automatically;
+- manual fields are preserved on reimport: `cash_flow_item_id`, `project_id`, `cash_flow_operation_type_id`, `management_comment`;
+- `allocation_status` is preserved if the existing document is already `Completed` or `Ignored`;
+- if critical source fields changed for a completed/ignored allocation, the backend marks `source_changed = true`.
 
 Upsert key:
 

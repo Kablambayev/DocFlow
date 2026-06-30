@@ -5,6 +5,7 @@ import { AccountingDictionariesPage } from "../pages/accounting/AccountingDictio
 import { AdminV2Page } from "../pages/admin/AdminV2Page";
 import { ApprovalMatrixV2Page } from "../pages/admin/ApprovalMatrixV2Page";
 import { ApprovalRoutesV2Page } from "../pages/admin/ApprovalRoutesV2Page";
+import { CashFlowAllocationsPage } from "../pages/cash-flow/CashFlowAllocationsPage";
 import { CashFlowMappingRulesPage } from "../pages/cash-flow/CashFlowMappingRulesPage";
 import { DocumentTypesAdminV2Page } from "../pages/admin/DocumentTypesAdminV2Page";
 import { RolesPermissionsPage } from "../pages/admin/RolesPermissionsPage";
@@ -28,6 +29,7 @@ export const menuItems = [
   { key: "/treasury/payment-requests", label: "Казначейство", icon: <AuditOutlined /> },
   { key: "/payment-registers", label: "Реестры оплат", icon: <AuditOutlined />, permission: "payment_register.read" },
   { key: "/accounting", label: "УпрУчет", icon: <AuditOutlined /> },
+  { key: "/cash-flow/allocations", label: "Разноска БДДС", icon: <AuditOutlined />, permission: "cash_flow.allocation.read" },
   { key: "/cash-flow/mapping-rules", label: "Сопоставление БДДС", icon: <AuditOutlined />, permission: "cash_flow.mapping.read" },
   { key: "/admin", label: "Администрирование", icon: <SettingOutlined /> },
   { key: "/admin/document-types", label: "Типы документов", icon: <AuditOutlined /> },
@@ -52,6 +54,7 @@ export const router = createBrowserRouter([
       { path: "integration/logs", element: <RequirePermission permission="integration.log.read"><IntegrationLogsPage /></RequirePermission> },
       { path: "integration/1c/diagnostics", element: <RequirePermission permission="integration_1c.diagnostics.read"><OneCDiagnosticsPage /></RequirePermission> },
       { path: "accounting", element: <RequirePermission permission="accounting.read"><AccountingDictionariesPage /></RequirePermission> },
+      { path: "cash-flow/allocations", element: <RequirePermission permission="cash_flow.allocation.read"><CashFlowAllocationsPage /></RequirePermission> },
       { path: "cash-flow/mapping-rules", element: <RequirePermission permission="cash_flow.mapping.read"><CashFlowMappingRulesPage /></RequirePermission> },
       { path: "admin", element: <RequirePermission anyOf={["admin.access", "document_type.read", "approval_route.read", "approval_matrix.read", "user.read", "role.read", "permission.read"]}><AdminV2Page /></RequirePermission> },
       { path: "admin/document-types", element: <RequirePermission permission="document_type.read"><DocumentTypesAdminV2Page /></RequirePermission> },

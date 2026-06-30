@@ -258,6 +258,72 @@ Assignments:
 
 Comment access still follows document visibility: admin, document author, or assigned approver task.
 
+## Stage 15 Cash Flow Allocation Scenario
+
+Stage 15 adds import of 1C cash flow documents into `CashFlowAllocation` and a registry page for manual enrichment.
+
+### Setup
+
+From `backend/`:
+
+```bash
+python.exe -m alembic upgrade head
+python.exe scripts/seed_dev.py
+python.exe -m pytest tests/test_cash_flow_mapping.py tests/test_cash_flow_documents_import.py tests/test_cash_flow_allocations.py -q
+```
+
+### Import API Scenario
+
+1. Use a user with `accounting.sync`.
+2. Call:
+
+```text
+POST /api/v1/integration/1c/cash-flow-documents/import
+Header: X-User-Id: <user_id>
+```
+
+3. Send a payload with one of the supported normalized types:
+
+- `PaymentOrderIncoming`
+- `CashReceiptOrder`
+- `MoneyReceiptOrder`
+- `PaymentOrderOutgoing`
+- `CashExpenseOrder`
+- `MoneyExpenseOrder`
+
+4. Verify response counters `created`, `updated`, `skipped`, and `errors`.
+5. Repeat the same payload and verify no duplicate allocation is created.
+6. Change a critical source field on a previously completed allocation and reimport it; verify `source_changed = true`.
+
+### Registry UI Scenario
+
+1. Run backend and frontend.
+2. Open `http://127.0.0.1:5173`.
+3. Log in as a user with `cash_flow.allocation.read`.
+4. Open `Разноска БДДС`.
+5. Verify filters and metric cards are visible.
+6. Open an allocation drawer and verify the source block is read-only.
+7. As a user with `cash_flow.allocation.manage`, set analytics fields and save.
+8. Complete the allocation and verify status changes to `Completed`.
+9. Ignore another allocation and verify status changes to `Ignored`.
+10. Reopen it and verify it returns to `NeedsEnrichment`.
+11. For an allocation with `source_changed = true`, verify the warning indicator is shown.
+
+### Automated Coverage
+
+Backend tests cover:
+
+- import permission checks;
+- oversized batch validation;
+- unsupported document type item errors;
+- creation of completed and `NeedsEnrichment` allocations;
+- idempotent reimport with protected manual fields;
+- `source_changed` behavior for completed allocations;
+- registry permission checks;
+- list/detail/update actions;
+- complete/ignore/reopen flows;
+- metrics endpoint.
+
 ### API Scenario
 
 1. Open or create a visible document.

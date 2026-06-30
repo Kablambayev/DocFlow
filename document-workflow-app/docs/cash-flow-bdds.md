@@ -98,7 +98,41 @@ Sample JSON:
 - `amount`
 - `source_document_date`
 
+## Stage 15 implemented flow
+
+Stage 15 completes the first operational loop:
+
+`1C cash flow document -> import endpoint -> mapping rule -> CashFlowAllocation registry -> manual enrichment/status control`
+
+Implemented pieces:
+
+- import endpoint: `POST /api/v1/integration/1c/cash-flow-documents/import`
+- registry API for list/detail/update/status actions
+- frontend page `/cash-flow/allocations`
+- metrics by allocation status and `source_changed`
+
+Allocation statuses:
+
+- `NeedsEnrichment`
+- `Completed`
+- `Ignored`
+
+Reimport behavior:
+
+- existing allocations are matched idempotently by source identity;
+- manual analytics fields are preserved on reimport;
+- completed/ignored allocations keep their operator decision;
+- if important source data changed, `source_changed = true` warns the operator that the source and allocation should be reconciled.
+
+Registry actions:
+
+- enrich analytics manually;
+- complete allocation;
+- ignore allocation;
+- reopen allocation.
+
 What remains for future stages:
-- import of 1C money movement documents into actual `CashFlowAllocation` documents;
-- UI for mass/manual enrichment of missing analytics;
-- final BDDS report and reporting filters.
+
+- mass operations and more advanced operator UX;
+- final BDDS reporting forms and report filters;
+- report export and analytical drill-down.

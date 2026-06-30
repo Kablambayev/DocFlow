@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.security import require_permission
 from app.db.session import get_db
+from app.modules.integration.one_c.cash_flow_documents_schemas import CashFlowDocumentsImportEnvelope, CashFlowDocumentsImportResult
+from app.modules.integration.one_c.cash_flow_documents_service import CashFlowDocumentsImportService
 from app.modules.integration.one_c.inbound_service import OneCInboundService
 from app.modules.integration.one_c.schemas import ImportEnvelope, ImportResult
 from app.modules.users.models import User
@@ -14,6 +16,10 @@ router = APIRouter(prefix="/integration/1c", tags=["integration-1c"])
 
 def get_service(db: Session = Depends(get_db)) -> OneCInboundService:
     return OneCInboundService(db)
+
+
+def get_cash_flow_documents_service(db: Session = Depends(get_db)) -> CashFlowDocumentsImportService:
+    return CashFlowDocumentsImportService(db)
 
 
 @router.post(
@@ -92,3 +98,16 @@ def import_counterparty_contracts(
     service: OneCInboundService = Depends(get_service),
 ):
     return service.import_counterparty_contracts(payload, current_user.id)
+
+
+@router.post(
+    "/cash-flow-documents/import",
+    response_model=CashFlowDocumentsImportResult,
+    summary="Import cash flow documents from 1C",
+)
+def import_cash_flow_documents(
+    payload: CashFlowDocumentsImportEnvelope,
+    current_user: User = Depends(require_permission("accounting.sync")),
+    service: CashFlowDocumentsImportService = Depends(get_cash_flow_documents_service),
+):
+    return service.import_cash_flow_documents(payload, current_user.id)
